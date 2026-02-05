@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="gearGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7"/>
+      <stop offset="100%" style="stop-color:#6c5ce7"/>
+    </linearGradient>
+    <linearGradient id="smallGearGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3498db"/>
+      <stop offset="100%" style="stop-color:#2980b9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="#1a1a2e"/>
+
+  <!-- Large gear (12 teeth) -->
+  <g transform="translate(38, 42)">
+    <path d="M0,-28 L4,-28 L6,-22 L10,-22 L12,-28 L16,-28 L14,-22 L18,-20 L22,-24 L26,-22 L22,-18 L24,-14 L28,-12 L28,-8 L22,-6 L22,-2 L28,0 L28,4 L22,6 L22,10 L26,14 L22,18 L18,14 L14,16 L12,22 L8,22 L6,16 L2,16 L0,22 L-4,22 L-6,16 L-10,16 L-12,22 L-16,22 L-14,16 L-18,14 L-22,18 L-26,14 L-22,10 L-22,6 L-28,4 L-28,0 L-22,-2 L-22,-6 L-28,-8 L-28,-12 L-22,-14 L-22,-18 L-26,-22 L-22,-24 L-18,-20 L-14,-22 L-12,-28 L-8,-28 L-6,-22 L-2,-22 L0,-28 Z"
+          fill="url(#gearGrad)" stroke="#5b4ccc" stroke-width="1"/>
+    <circle cx="0" cy="0" r="8" fill="#1a1a2e"/>
+    <circle cx="0" cy="0" r="4" fill="#444"/>
+  </g>
+
+  <!-- Small gear (8 teeth) -->
+  <g transform="translate(68, 62)">
+    <path d="M0,-16 L3,-16 L4,-12 L8,-12 L9,-16 L12,-15 L10,-11 L13,-9 L16,-11 L17,-8 L13,-6 L13,-2 L17,0 L16,3 L12,2 L10,5 L13,8 L10,10 L8,7 L5,9 L5,13 L2,13 L2,9 L-2,9 L-2,13 L-5,13 L-5,9 L-8,7 L-10,10 L-13,8 L-10,5 L-12,2 L-16,3 L-17,0 L-13,-2 L-13,-6 L-17,-8 L-16,-11 L-13,-9 L-10,-11 L-12,-15 L-9,-16 L-8,-12 L-4,-12 L-3,-16 L0,-16 Z"
+          fill="url(#smallGearGrad)" stroke="#2471a3" stroke-width="1"/>
+    <circle cx="0" cy="0" r="5" fill="#1a1a2e"/>
+    <circle cx="0" cy="0" r="2.5" fill="#444"/>
+  </g>
+
+  <!-- Connection glow -->
+  <circle cx="53" cy="52" r="6" fill="#6c5ce7" opacity="0.3"/>
+</svg>
