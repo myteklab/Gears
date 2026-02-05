@@ -1128,7 +1128,7 @@
     // Platform-managed - data comes via platform:load event
 
     let currentProjectId = null; // Platform-managed
-    let isDirty = false;
+    window.isDirty = false;
 
     // Application state
     const state = {
@@ -1311,7 +1311,7 @@
         };
 
         state.gears.push(gear);
-        isDirty = true;
+        window.isDirty = true;
         updateAllConnections();
         return gear;
     }
@@ -1340,7 +1340,7 @@
             }
 
             updateAllConnections();
-            isDirty = true;
+            window.isDirty = true;
         }
     }
 
@@ -1350,7 +1350,7 @@
             gear.teethCount = newTeethCount;
             gear.radius = calculateRadius(newTeethCount);
             updateAllConnections();
-            isDirty = true;
+            window.isDirty = true;
         }
     }
 
@@ -1358,7 +1358,7 @@
         const gear = state.gears.find(g => g.id === gearId);
         if (gear) {
             gear.color = color;
-            isDirty = true;
+            window.isDirty = true;
         }
     }
 
@@ -1380,7 +1380,7 @@
                 scale: 1,
                 imageObj: img
             };
-            isDirty = true;
+            window.isDirty = true;
             updateUI();
             showToast('Image attached!', 'success');
         };
@@ -1396,7 +1396,7 @@
         const gear = state.gears.find(g => g.id === state.selectedGearId);
         if (gear && gear.attachedImage) {
             gear.attachedImage[property] = value;
-            isDirty = true;
+            window.isDirty = true;
         }
     }
 
@@ -1406,7 +1406,7 @@
         const gear = state.gears.find(g => g.id === state.selectedGearId);
         if (gear) {
             gear.attachedImage = null;
-            isDirty = true;
+            window.isDirty = true;
             updateUI();
             showToast('Image removed', 'info');
         }
@@ -1425,7 +1425,7 @@
             propagateRotation();
         }
 
-        isDirty = true;
+        window.isDirty = true;
     }
 
     // ============================================
@@ -1700,7 +1700,7 @@
         }
 
         state.outputs.push(output);
-        isDirty = true;
+        window.isDirty = true;
         return output;
     }
 
@@ -2389,7 +2389,7 @@
         });
 
         speedSlider.addEventListener('change', () => {
-            isDirty = true;
+            window.isDirty = true;
         });
 
         // Teeth slider
@@ -2609,7 +2609,7 @@
         if (isDragging && dragTarget) {
             if (dragTarget.type === 'gear') {
                 updateAllConnections();
-                isDirty = true;
+                window.isDirty = true;
             } else if (dragTarget.type === 'output') {
                 // Try to attach output to nearest gear
                 const output = dragTarget.item;
@@ -2633,7 +2633,7 @@
                 } else {
                     showToast('Drop on a gear to attach', 'info');
                 }
-                isDirty = true;
+                window.isDirty = true;
             }
         }
 
@@ -2859,7 +2859,7 @@
         }
 
         propagateRotation();
-        isDirty = true;
+        window.isDirty = true;
         showToast(state.settings.spinDirection === 1 ? 'Clockwise' : 'Counter-clockwise', 'info');
     }
 
@@ -2872,7 +2872,7 @@
                 setDriverGear(state.selectedGearId);
             }
             updateUI();
-            isDirty = true;
+            window.isDirty = true;
         }
     }
 
@@ -2890,7 +2890,7 @@
             if (index !== -1) {
                 state.outputs.splice(index, 1);
                 state.selectedOutputId = null;
-                isDirty = true;
+                window.isDirty = true;
                 showToast('Output deleted', 'info');
             }
         }
@@ -2899,7 +2899,7 @@
     function toggleGrid() {
         state.settings.gridSnap = !state.settings.gridSnap;
         updateUI();
-        isDirty = true;
+        window.isDirty = true;
     }
 
     function resetZoom() {
@@ -2927,13 +2927,13 @@
     function updateThicknessSetting(value) {
         state.settings.toothThickness = value / 100;
         document.getElementById('thicknessValue').textContent = value + '%';
-        isDirty = true;
+        window.isDirty = true;
     }
 
     function updateDepthSetting(value) {
         state.settings.toothDepth = parseInt(value);
         document.getElementById('depthValue').textContent = value + 'px';
-        isDirty = true;
+        window.isDirty = true;
     }
 
     // Help Modal Functions
@@ -2960,7 +2960,7 @@
             state.driverGearId = null;
             state.selectedGearId = null;
             updateUI();
-            isDirty = true;
+            window.isDirty = true;
             showToast('All gears cleared', 'info');
         }
     }
@@ -2972,7 +2972,7 @@
     }
 
     function newProject() {
-        if (isDirty) {
+        if (window.isDirty) {
             if (!confirm('You have unsaved changes. Start a new project anyway?')) {
                 return;
             }
@@ -3069,7 +3069,7 @@
         })
         .then(response => response.json())
         .then(data => {
-            isDirty = false;
+            window.isDirty = false;
             showToast('Project saved!', 'success');
             // Save screenshot for gallery preview
             saveScreenshot();
@@ -3248,7 +3248,7 @@
     }
 
     function autoSave() {
-        if (currentProjectId && isDirty) {
+        if (currentProjectId && window.isDirty) {
             const projectData = JSON.stringify(serializeProject());
 
             fetch(`https://www.mytekos.com/beta/api/v1/files/${currentProjectId}/update`, {
@@ -3262,7 +3262,7 @@
             })
             .then(response => response.json())
             .then(data => {
-                isDirty = false;
+                window.isDirty = false;
                 showToast('Auto-saved', 'success');
             })
             .catch(err => {
@@ -3293,20 +3293,13 @@
     // Export for platform adapter
     window.serializeProjectData = serializeProject;
     window.loadProjectData = loadProjectData;
-    window.markDirty = function() { isDirty = true; };
-    window.markClean = function() { isDirty = false; };
-    window.hasUnsavedChanges = function() { return isDirty; };
+    window.markDirty = function() { window.isDirty = true; };
+    window.markClean = function() { window.isDirty = false; };
+    window.hasUnsavedChanges = function() { return window.isDirty; };
 
     window.addEventListener('load', init);
 
-    // Warn about unsaved changes
-    window.addEventListener('beforeunload', e => {
-        if (isDirty) {
-            e.preventDefault();
-            e.returnValue = 'You have unsaved changes.';
-            return e.returnValue;
-        }
-    });
+    // beforeunload handled by platform adapter
     </script>
 </body>
 </html>
