@@ -87,13 +87,13 @@ function loadProjectData(data) {
 // Save Functions (Platform-managed)
 // ============================================
 function saveProject() {
-    // Platform handles actual save - just trigger the event
-    if (typeof Platform !== 'undefined' && Platform.requestSave) {
-        Platform.requestSave();
-    } else {
-        // Fallback for standalone testing
-        showToast('Save handled by platform', 'info');
+    // Use saveLoadManager if available (set by platform adapter)
+    if (window.saveLoadManager && window.saveLoadManager.save) {
+        window.saveLoadManager.save();
+        return;
     }
+    // Fallback for standalone testing
+    showToast('Save requires platform', 'info');
 }
 
 // ============================================
