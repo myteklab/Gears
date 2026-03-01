@@ -222,52 +222,67 @@ function updateMotorMetrics(output) {
         '<div class="motor-metric"><span>Power</span><strong>' + output.power.toFixed(2) + ' W</strong></div>';
 }
 
-// Create a default 3-gear reduction train for embedded (Robotics) mode
-// 8-tooth driver -> 24-tooth intermediate -> 48-tooth output with wheel
-// Produces a 6:1 reduction: 150 RPM in, ~25 RPM out, 3.0 Nm torque out
+// Create a default gear motor reduction train for embedded (Robotics) mode.
+// Simulates a high-speed DC motor (3000 RPM) driving through a 4-gear chain
+// to a wheel. With simple external meshing the total ratio is always
+// first/last = 8/48 = 6:1, so intermediates add visual progression showing
+// gears getting larger from motor to wheel. Real gear motors use compound
+// (co-axial) stages for higher ratios, but this demonstrates the principle.
+// Output: 500 RPM, 0.6 Nm (6x torque multiplication from 0.1 Nm input).
 function createDefaultGearTrain() {
-    // Calculate gear radii: radius = teethCount * moduleSize / 2 (moduleSize=5)
-    // r(8)=20, r(24)=60, r(48)=120
-    var r1 = calculateRadius(8);   // 20
-    var r2 = calculateRadius(24);  // 60
-    var r3 = calculateRadius(48);  // 120
+    // Gear teeth: 8 -> 12 -> 24 -> 48  (small to large visual progression)
+    // Radii: r = teeth * 5 / 2
+    var teeth = [8, 12, 24, 48];
+    var colors = ['#f39c12', '#e74c3c', '#3498db', '#2ecc71'];
+    var radii = teeth.map(function(t) { return calculateRadius(t); });
+    // radii: [20, 30, 60, 120]
 
-    // Total span: (r1+r2) + (r2+r3) = 80 + 180 = 260px
-    // Center the train on the canvas
+    // Mesh distances between consecutive gears
+    var meshDists = [];
+    for (var i = 0; i < radii.length - 1; i++) {
+        meshDists.push(radii[i] + radii[i + 1]);
+    }
+    // meshDists: [50, 90, 180] -> total span = 320px
+
+    var totalSpan = 0;
+    for (var i = 0; i < meshDists.length; i++) totalSpan += meshDists[i];
+
     var cx = canvasWidth / 2;
     var cy = canvasHeight / 2;
-    var totalSpan = (r1 + r2) + (r2 + r3);
-    var startX = cx - totalSpan / 2;
+    var x = cx - totalSpan / 2;
 
-    // Create gears with specific colors
-    var driver = createGear(startX, cy, 8, '#f39c12');         // orange driver
-    var intermediate = createGear(startX + r1 + r2, cy, 24, '#3498db');  // blue
-    var outputGear = createGear(startX + r1 + r2 + r2 + r3, cy, 48, '#2ecc71'); // green
+    // Create all gears
+    var gears = [];
+    for (var i = 0; i < teeth.length; i++) {
+        gears.push(createGear(x, cy, teeth[i], colors[i]));
+        if (i < meshDists.length) x += meshDists[i];
+    }
 
-    // Set driver gear
-    state.driverGearId = driver.id;
+    // Set driver (first gear, attached to motor shaft)
+    state.driverGearId = gears[0].id;
 
-    // Set output shaft
-    state.outputShaftGearId = outputGear.id;
+    // Set output shaft (last gear, drives the wheel)
+    state.outputShaftGearId = gears[gears.length - 1].id;
 
-    // Set motor preset to medium (150 RPM, 0.5 Nm)
+    // Configure motor: 3000 RPM, 0.1 Nm (typical small high-speed DC motor)
     state.settings.motor.enabled = true;
-    state.settings.motor.rpmInput = 150;
-    state.settings.motor.torqueNm = 0.5;
+    state.settings.motor.rpmInput = 3000;
+    state.settings.motor.torqueNm = 0.1;
     var presetSelect = document.getElementById('motorPreset');
-    if (presetSelect) presetSelect.value = 'medium';
+    if (presetSelect) presetSelect.value = '';
     var rpmSlider = document.getElementById('motorRpmSlider');
     var rpmValue = document.getElementById('motorRpmValue');
-    if (rpmSlider) rpmSlider.value = 150;
-    if (rpmValue) rpmValue.textContent = '150';
+    if (rpmSlider) rpmSlider.value = 3000;
+    if (rpmValue) rpmValue.textContent = '3000';
     var torqueSlider = document.getElementById('motorTorqueSlider');
     var torqueValue = document.getElementById('motorTorqueValue');
-    if (torqueSlider) torqueSlider.value = 50;
-    if (torqueValue) torqueValue.textContent = '0.50';
+    if (torqueSlider) torqueSlider.value = 10;
+    if (torqueValue) torqueValue.textContent = '0.10';
 
     updateMotorModeUI();
 
     // Attach a wheel to the output gear
+    var outputGear = gears[gears.length - 1];
     var wheel = createOutput('wheel', outputGear.x, outputGear.y);
     wheel.attachedToGear = outputGear.id;
 
