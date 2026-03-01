@@ -238,12 +238,12 @@ function updateMotorMetrics(output) {
 }
 
 // Create a default gear motor reduction train for embedded (Robotics) mode.
-// Simulates a high-speed DC motor (6000 RPM) driving through a 4-gear chain
-// to a wheel. With simple external meshing the total ratio is always
-// first/last = 8/48 = 6:1, so intermediates add visual progression showing
-// gears getting larger from motor to wheel. Real gear motors use compound
-// (co-axial) stages for higher ratios, but this demonstrates the principle.
-// Output: 1000 RPM, 0.3 Nm (6x torque multiplication from 0.05 Nm input).
+// Simulates a DC motor (2000 RPM) driving through a 4-gear chain to a wheel.
+// With simple external meshing the total ratio is always first/last =
+// 8/48 = 6:1, so intermediates add visual progression showing gears getting
+// larger from motor to wheel. Real gear motors use compound (co-axial)
+// stages for higher ratios, but this demonstrates the principle.
+// Output: ~333 RPM, 0.6 Nm (6x torque multiplication from 0.1 Nm input).
 // Visual rotation is capped at 8 rot/sec to avoid stroboscopic aliasing.
 function createDefaultGearTrain() {
     // Gear teeth: 8 -> 12 -> 24 -> 48  (small to large visual progression)
@@ -280,21 +280,21 @@ function createDefaultGearTrain() {
     // Set output shaft (last gear, drives the wheel)
     state.outputShaftGearId = gears[gears.length - 1].id;
 
-    // Configure motor: use high-speed preset (6000 RPM, 0.05 Nm)
-    // With 6:1 reduction: output = 1000 RPM, 0.30 Nm
+    // Configure motor: 2000 RPM, 0.1 Nm
+    // With 6:1 reduction: output = ~333 RPM, 0.6 Nm
     state.settings.motor.enabled = true;
-    state.settings.motor.rpmInput = 6000;
-    state.settings.motor.torqueNm = 0.05;
+    state.settings.motor.rpmInput = 2000;
+    state.settings.motor.torqueNm = 0.1;
     var presetSelect = document.getElementById('motorPreset');
-    if (presetSelect) presetSelect.value = 'high_speed';
+    if (presetSelect) presetSelect.value = '';
     var rpmSlider = document.getElementById('motorRpmSlider');
     var rpmValue = document.getElementById('motorRpmValue');
-    if (rpmSlider) rpmSlider.value = 6000;
-    if (rpmValue) rpmValue.textContent = '6000';
+    if (rpmSlider) rpmSlider.value = 2000;
+    if (rpmValue) rpmValue.textContent = '2000';
     var torqueSlider = document.getElementById('motorTorqueSlider');
     var torqueValue = document.getElementById('motorTorqueValue');
-    if (torqueSlider) torqueSlider.value = 5;
-    if (torqueValue) torqueValue.textContent = '0.05';
+    if (torqueSlider) torqueSlider.value = 10;
+    if (torqueValue) torqueValue.textContent = '0.10';
 
     updateMotorModeUI();
 

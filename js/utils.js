@@ -56,7 +56,7 @@ function hitTestOutput(x, y) {
                 hitRadius = 40;
                 break;
             case 'wheel':
-                hitRadius = 45;
+                hitRadius = 65;
                 break;
         }
 

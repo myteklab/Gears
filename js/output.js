@@ -138,9 +138,9 @@ function drawPlatform(output) {
 }
 
 function drawWheel(output) {
-    var outerR = 40;
-    var rimR = 32;
-    var hubR = 10;
+    var outerR = 60;
+    var rimR = 48;
+    var hubR = 14;
     var spokeCount = 5;
 
     // Outer tire (dark rubber)
