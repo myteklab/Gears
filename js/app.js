@@ -166,16 +166,18 @@ function update(deltaTime) {
 
         // Only rotate if not locked
         if (!locked) {
-            // Apply load to speed
+            // Calculate speed
             var baseSpeed;
+            var currentSpeed;
             if (state.settings.motor && state.settings.motor.enabled) {
-                // Motor mode: derive speed from motor RPM
-                // Convert RPM to rotations/sec, then scale by direction
+                // Motor mode: motor delivers its set RPM regardless of load
                 baseSpeed = (state.settings.motor.rpmInput / 60) * state.settings.spinDirection;
+                currentSpeed = baseSpeed;
             } else {
+                // Free-spin mode: load reduces speed
                 baseSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
+                currentSpeed = baseSpeed * multiplier;
             }
-            var currentSpeed = baseSpeed * multiplier;
 
             driver.rotationSpeed = currentSpeed;
             driver.rotation += currentSpeed * deltaTime * Math.PI * 2;
