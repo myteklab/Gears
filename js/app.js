@@ -225,12 +225,12 @@ function updateMotorMetrics(output) {
 }
 
 // Create a default gear motor reduction train for embedded (Robotics) mode.
-// Simulates a high-speed DC motor (3000 RPM) driving through a 4-gear chain
+// Simulates a high-speed DC motor (1800 RPM) driving through a 4-gear chain
 // to a wheel. With simple external meshing the total ratio is always
 // first/last = 8/48 = 6:1, so intermediates add visual progression showing
 // gears getting larger from motor to wheel. Real gear motors use compound
 // (co-axial) stages for higher ratios, but this demonstrates the principle.
-// Output: 500 RPM, 0.6 Nm (6x torque multiplication from 0.1 Nm input).
+// Output: 300 RPM, 0.6 Nm (6x torque multiplication from 0.1 Nm input).
 function createDefaultGearTrain() {
     // Gear teeth: 8 -> 12 -> 24 -> 48  (small to large visual progression)
     // Radii: r = teeth * 5 / 2
@@ -266,16 +266,17 @@ function createDefaultGearTrain() {
     // Set output shaft (last gear, drives the wheel)
     state.outputShaftGearId = gears[gears.length - 1].id;
 
-    // Configure motor: 3000 RPM, 0.1 Nm (typical small high-speed DC motor)
+    // Configure motor: 1800 RPM, 0.1 Nm (small high-speed DC motor)
+    // With 6:1 reduction: output = 300 RPM, 0.6 Nm
     state.settings.motor.enabled = true;
-    state.settings.motor.rpmInput = 3000;
+    state.settings.motor.rpmInput = 1800;
     state.settings.motor.torqueNm = 0.1;
     var presetSelect = document.getElementById('motorPreset');
     if (presetSelect) presetSelect.value = '';
     var rpmSlider = document.getElementById('motorRpmSlider');
     var rpmValue = document.getElementById('motorRpmValue');
-    if (rpmSlider) rpmSlider.value = 3000;
-    if (rpmValue) rpmValue.textContent = '3000';
+    if (rpmSlider) rpmSlider.value = 1800;
+    if (rpmValue) rpmValue.textContent = '1800';
     var torqueSlider = document.getElementById('motorTorqueSlider');
     var torqueValue = document.getElementById('motorTorqueValue');
     if (torqueSlider) torqueSlider.value = 10;
