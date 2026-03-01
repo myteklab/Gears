@@ -13,7 +13,7 @@ function createOutput(type, x, y) {
         y: y,
         attachedToGear: null,
         rotation: 0,
-        color: type === 'fan' ? '#3498db' : type === 'clock' ? '#2c3e50' : '#95a5a6'
+        color: type === 'fan' ? '#3498db' : type === 'clock' ? '#2c3e50' : type === 'wheel' ? '#333333' : '#95a5a6'
     };
 
     // Try to attach to nearest gear
@@ -134,5 +134,71 @@ function drawPlatform(output) {
     ctx.beginPath();
     ctx.arc(0, 0, 8, 0, Math.PI * 2);
     ctx.fillStyle = '#34495e';
+    ctx.fill();
+}
+
+function drawWheel(output) {
+    var outerR = 40;
+    var rimR = 32;
+    var hubR = 10;
+    var spokeCount = 5;
+
+    // Outer tire (dark rubber)
+    ctx.beginPath();
+    ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fill();
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Tire tread marks
+    for (var i = 0; i < 20; i++) {
+        var a = (i / 20) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * (outerR - 1), Math.sin(a) * (outerR - 1));
+        ctx.lineTo(Math.cos(a) * (outerR - 5), Math.sin(a) * (outerR - 5));
+        ctx.strokeStyle = '#3a3a3a';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    // Metallic rim
+    ctx.beginPath();
+    ctx.arc(0, 0, rimR, 0, Math.PI * 2);
+    var rimGrad = ctx.createRadialGradient(0, 0, hubR, 0, 0, rimR);
+    rimGrad.addColorStop(0, '#c0c0c0');
+    rimGrad.addColorStop(0.5, '#a0a0a0');
+    rimGrad.addColorStop(1, '#808080');
+    ctx.fillStyle = rimGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Spokes
+    for (var s = 0; s < spokeCount; s++) {
+        var sa = (s / spokeCount) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(sa) * hubR, Math.sin(sa) * hubR);
+        ctx.lineTo(Math.cos(sa) * (rimR - 2), Math.sin(sa) * (rimR - 2));
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    // Hub
+    ctx.beginPath();
+    ctx.arc(0, 0, hubR, 0, Math.PI * 2);
+    ctx.fillStyle = '#b0b0b0';
+    ctx.fill();
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Center axle hole
+    ctx.beginPath();
+    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#555';
     ctx.fill();
 }

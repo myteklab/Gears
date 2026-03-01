@@ -383,6 +383,7 @@ function drawOutput(output) {
         if (output.type === 'fan') selectionRadius = 60;
         else if (output.type === 'clock') selectionRadius = 50;
         else if (output.type === 'platform') selectionRadius = 45;
+        else if (output.type === 'wheel') selectionRadius = 50;
         ctx.arc(0, 0, selectionRadius, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
@@ -399,6 +400,9 @@ function drawOutput(output) {
             break;
         case 'platform':
             drawPlatform(output);
+            break;
+        case 'wheel':
+            drawWheel(output);
             break;
     }
 

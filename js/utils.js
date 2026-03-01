@@ -55,6 +55,9 @@ function hitTestOutput(x, y) {
             case 'platform':
                 hitRadius = 40;
                 break;
+            case 'wheel':
+                hitRadius = 45;
+                break;
         }
 
         if (dist <= hitRadius) {

@@ -37,6 +37,14 @@ function init() {
         state.settings.motor.enabled = true;
         updateMotorModeUI();
 
+        // Hide output palette (wheel is pre-attached in default train)
+        var outputSection = document.getElementById('outputPaletteSection');
+        if (outputSection) outputSection.style.display = 'none';
+
+        // Hide help icons for cleaner embedded UI
+        var helpIcons = document.querySelectorAll('.help-icon');
+        helpIcons.forEach(function(el) { el.style.display = 'none'; });
+
         // Listen for messages from parent
         window.addEventListener('message', function(event) {
             var data = event.data;
@@ -45,6 +53,15 @@ function init() {
             if (data.type === 'robotics:loadGears') {
                 if (data.gearsData && typeof loadProjectData === 'function') {
                     loadProjectData(data.gearsData);
+                }
+                // If loading resulted in no gears (empty save), create default
+                if (state.gears.length === 0) {
+                    createDefaultGearTrain();
+                } else {
+                    // Auto-play loaded gear train
+                    if (!isPlaying && typeof togglePlay === 'function') {
+                        togglePlay();
+                    }
                 }
             } else if (data.type === 'robotics:requestGearsState') {
                 sendGearsState();
@@ -56,6 +73,13 @@ function init() {
             type: 'robotics:childReady',
             tool: 'gears'
         }, '*');
+
+        // If no saved data arrives, create a default gear train after a short delay
+        setTimeout(function() {
+            if (state.gears.length === 0) {
+                createDefaultGearTrain();
+            }
+        }, 500);
     }
 }
 
@@ -196,6 +220,64 @@ function updateMotorMetrics(output) {
         '<div class="motor-metric"><span>Ratio</span><strong>' + ratioStr + '</strong></div>' +
         '<div class="motor-metric"><span>Torque x</span><strong>' + output.gearRatio.toFixed(1) + 'x</strong></div>' +
         '<div class="motor-metric"><span>Power</span><strong>' + output.power.toFixed(2) + ' W</strong></div>';
+}
+
+// Create a default 3-gear reduction train for embedded (Robotics) mode
+// 8-tooth driver -> 24-tooth intermediate -> 48-tooth output with wheel
+// Produces a 6:1 reduction: 150 RPM in, ~25 RPM out, 3.0 Nm torque out
+function createDefaultGearTrain() {
+    // Calculate gear radii: radius = teethCount * moduleSize / 2 (moduleSize=5)
+    // r(8)=20, r(24)=60, r(48)=120
+    var r1 = calculateRadius(8);   // 20
+    var r2 = calculateRadius(24);  // 60
+    var r3 = calculateRadius(48);  // 120
+
+    // Total span: (r1+r2) + (r2+r3) = 80 + 180 = 260px
+    // Center the train on the canvas
+    var cx = canvasWidth / 2;
+    var cy = canvasHeight / 2;
+    var totalSpan = (r1 + r2) + (r2 + r3);
+    var startX = cx - totalSpan / 2;
+
+    // Create gears with specific colors
+    var driver = createGear(startX, cy, 8, '#f39c12');         // orange driver
+    var intermediate = createGear(startX + r1 + r2, cy, 24, '#3498db');  // blue
+    var outputGear = createGear(startX + r1 + r2 + r2 + r3, cy, 48, '#2ecc71'); // green
+
+    // Set driver gear
+    state.driverGearId = driver.id;
+
+    // Set output shaft
+    state.outputShaftGearId = outputGear.id;
+
+    // Set motor preset to medium (150 RPM, 0.5 Nm)
+    state.settings.motor.enabled = true;
+    state.settings.motor.rpmInput = 150;
+    state.settings.motor.torqueNm = 0.5;
+    var presetSelect = document.getElementById('motorPreset');
+    if (presetSelect) presetSelect.value = 'medium';
+    var rpmSlider = document.getElementById('motorRpmSlider');
+    var rpmValue = document.getElementById('motorRpmValue');
+    if (rpmSlider) rpmSlider.value = 150;
+    if (rpmValue) rpmValue.textContent = '150';
+    var torqueSlider = document.getElementById('motorTorqueSlider');
+    var torqueValue = document.getElementById('motorTorqueValue');
+    if (torqueSlider) torqueSlider.value = 50;
+    if (torqueValue) torqueValue.textContent = '0.50';
+
+    updateMotorModeUI();
+
+    // Attach a wheel to the output gear
+    var wheel = createOutput('wheel', outputGear.x, outputGear.y);
+    wheel.attachedToGear = outputGear.id;
+
+    // Recalculate connections and phase offsets
+    updateAllConnections();
+
+    // Auto-play
+    if (!isPlaying && typeof togglePlay === 'function') {
+        togglePlay();
+    }
 }
 
 function sendGearsState() {

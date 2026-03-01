@@ -174,6 +174,14 @@ const helpContent = {
                 </div>
             </div>
 
+            <div class="help-section">
+                <div class="help-section-title"><span class="icon">&#9782;</span> Wheel</div>
+                <div class="help-text">
+                    A rubber tire with metallic rim and spokes. Attach it to the output gear of a reduction
+                    train to see how a gear motor converts high-speed rotation into slower, high-torque wheel movement.
+                </div>
+            </div>
+
             <div class="help-tip">
                 <strong>Try This:</strong> Create a gear train where a large driver gear powers a tiny gear,
                 then attach a fan to the tiny gear. Watch how fast it spins compared to the driver!
