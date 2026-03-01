@@ -149,6 +149,9 @@
                 <button class="property-btn btn-driver" id="driverBtn" onclick="toggleDriver()">
                     Make Driver Gear
                 </button>
+                <button class="property-btn" id="outputShaftBtn" onclick="setOutputShaft()" style="background:#1abc9c;">
+                    Set Output Shaft
+                </button>
                 <button class="property-btn btn-delete" onclick="deleteSelectedGear()">
                     Delete Gear
                 </button>
@@ -158,6 +161,37 @@
             <div class="panel-section" id="noSelectionPanel">
                 <div class="no-selection">
                     Drag a gear from the palette above onto the canvas, or click an existing gear to select it.
+                </div>
+            </div>
+
+            <!-- Motor Mode Panel -->
+            <div class="panel-section" id="motorModePanel">
+                <div class="panel-title">Motor Mode</div>
+                <div class="property-row">
+                    <button class="property-btn" onclick="toggleMotorMode()" id="motorToggleBtn" style="width:100%;">
+                        Enable Motor Mode
+                    </button>
+                </div>
+                <div id="motorControls" style="display: none;">
+                    <div class="property-row">
+                        <div class="property-label">Preset</div>
+                        <select id="motorPreset" onchange="setMotorPreset(this.value)" style="flex:1;background:#2a2a3e;color:#fff;border:1px solid #444;padding:4px;border-radius:4px;">
+                            <option value="">Custom</option>
+                            <option value="small">Small DC Motor</option>
+                            <option value="medium" selected>Medium DC Motor</option>
+                            <option value="large">Large DC Motor</option>
+                            <option value="high_speed">High-Speed Motor</option>
+                        </select>
+                    </div>
+                    <div class="property-row">
+                        <div class="property-label">RPM: <span id="motorRpmValue">200</span></div>
+                        <input type="range" id="motorRpmSlider" min="10" max="6000" step="10" value="200">
+                    </div>
+                    <div class="property-row">
+                        <div class="property-label">Torque: <span id="motorTorqueValue">0.50</span> Nm</div>
+                        <input type="range" id="motorTorqueSlider" min="5" max="500" step="5" value="50">
+                    </div>
+                    <div id="motorMetrics" style="font-size:11px;color:#aaa;margin-top:8px;"></div>
                 </div>
             </div>
 
@@ -277,5 +311,9 @@
 
     <!-- App initialization (depends on everything) -->
     <script src="js/app.js"></script>
+    <script>
+        // Initialize motor controls after all scripts loaded
+        if (typeof setupMotorControls === 'function') setupMotorControls();
+    </script>
 </body>
 </html>

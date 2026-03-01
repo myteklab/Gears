@@ -95,6 +95,41 @@ function drawGear(gear) {
         ctx.stroke();
     }
 
+    // Draw motor housing on driver when motor mode enabled
+    if (gear.id === state.driverGearId && state.settings.motor && state.settings.motor.enabled) {
+        ctx.save();
+        // Motor housing rectangle attached to driver gear
+        var mw = 20, mh = 14;
+        var my = gear.radius + toothDepth + 16;
+        ctx.fillStyle = '#444';
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-mw/2, my - mh/2, mw, mh, 3);
+        ctx.fill();
+        ctx.stroke();
+        // "M" label on motor
+        ctx.fillStyle = '#f39c12';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('M', 0, my);
+        ctx.restore();
+    }
+
+    // Draw output shaft indicator (green dashed ring)
+    if (state.outputShaftGearId && gear.id === state.outputShaftGearId) {
+        ctx.save();
+        ctx.strokeStyle = '#2ecc71';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.arc(0, 0, gear.radius + toothDepth + 14, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+
     // Draw locked gear indicator (red pulsing glow)
     if (lockedGears.has(gear.id)) {
         const pulseIntensity = 0.5 + 0.5 * Math.sin(Date.now() / 200);
@@ -237,7 +272,14 @@ function drawGear(gear) {
         ctx.translate(gear.x, gear.y);
 
         // Background pill for RPM
-        const text = direction + ' ' + rpm;
+        let text = direction + ' ' + rpm;
+        // Show torque in motor mode
+        if (state.settings.motor && state.settings.motor.enabled && typeof calculateMotorOutput === 'function') {
+            var motorOut = calculateMotorOutput();
+            if (motorOut && state.outputShaftGearId === gear.id) {
+                text += ' / ' + motorOut.outputTorque.toFixed(2) + ' Nm';
+            }
+        }
         ctx.font = 'bold 11px sans-serif';
         const textWidth = ctx.measureText(text).width;
         const pillWidth = textWidth + 12;

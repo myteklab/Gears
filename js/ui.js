@@ -138,6 +138,20 @@ function updateUI() {
     // Update grid status
     document.getElementById('gridStatus').textContent = state.settings.gridSnap ? 'ON' : 'OFF';
     document.getElementById('gridToggleText').textContent = state.settings.gridSnap ? 'Hide Grid' : 'Show Grid';
+
+    // Update output shaft button
+    if (state.selectedGearId) {
+        var outputBtn = document.getElementById('outputShaftBtn');
+        if (outputBtn) {
+            if (state.outputShaftGearId === state.selectedGearId) {
+                outputBtn.textContent = 'Output Shaft (active)';
+                outputBtn.classList.add('active');
+            } else {
+                outputBtn.textContent = 'Set Output Shaft';
+                outputBtn.classList.remove('active');
+            }
+        }
+    }
 }
 
 // ============================================
@@ -283,4 +297,76 @@ function showHelpModal(topic) {
 function hideHelpModal(event) {
     if (event && event.target !== event.currentTarget) return;
     document.getElementById('helpModal').classList.remove('visible');
+}
+
+// ============================================
+// Motor Mode Controls
+// ============================================
+function toggleMotorMode() {
+    state.settings.motor.enabled = !state.settings.motor.enabled;
+    if (typeof updateMotorModeUI === 'function') updateMotorModeUI();
+    propagateRotation();
+    window.isDirty = true;
+}
+
+function setMotorPreset(presetKey) {
+    var preset = MOTOR_PRESETS[presetKey];
+    if (!preset) return;
+    state.settings.motor.rpmInput = preset.rpmInput;
+    state.settings.motor.torqueNm = preset.torqueNm;
+
+    var rpmSlider = document.getElementById('motorRpmSlider');
+    var rpmValue = document.getElementById('motorRpmValue');
+    var torqueSlider = document.getElementById('motorTorqueSlider');
+    var torqueValue = document.getElementById('motorTorqueValue');
+    if (rpmSlider) rpmSlider.value = preset.rpmInput;
+    if (rpmValue) rpmValue.textContent = preset.rpmInput;
+    if (torqueSlider) torqueSlider.value = preset.torqueNm * 100;
+    if (torqueValue) torqueValue.textContent = preset.torqueNm.toFixed(2);
+
+    propagateRotation();
+    window.isDirty = true;
+    showToast(preset.label + ' selected', 'info');
+}
+
+function setOutputShaft() {
+    if (state.selectedGearId) {
+        if (state.outputShaftGearId === state.selectedGearId) {
+            state.outputShaftGearId = null;
+            showToast('Output shaft cleared', 'info');
+        } else {
+            state.outputShaftGearId = state.selectedGearId;
+            showToast('Output shaft set', 'success');
+        }
+        window.isDirty = true;
+    }
+}
+
+function setupMotorControls() {
+    var rpmSlider = document.getElementById('motorRpmSlider');
+    var rpmValue = document.getElementById('motorRpmValue');
+    if (rpmSlider) {
+        rpmSlider.addEventListener('input', function(e) {
+            var val = parseInt(e.target.value);
+            state.settings.motor.rpmInput = val;
+            if (rpmValue) rpmValue.textContent = val;
+        });
+        rpmSlider.addEventListener('change', function() {
+            propagateRotation();
+            window.isDirty = true;
+        });
+    }
+
+    var torqueSlider = document.getElementById('motorTorqueSlider');
+    var torqueValue = document.getElementById('motorTorqueValue');
+    if (torqueSlider) {
+        torqueSlider.addEventListener('input', function(e) {
+            var val = parseInt(e.target.value) / 100;
+            state.settings.motor.torqueNm = val;
+            if (torqueValue) torqueValue.textContent = val.toFixed(2);
+        });
+        torqueSlider.addEventListener('change', function() {
+            window.isDirty = true;
+        });
+    }
 }

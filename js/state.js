@@ -218,8 +218,22 @@ const state = {
         spinDirection: 1, // 1 = clockwise, -1 = counterclockwise
         toothThickness: 0.60, // 0.3 to 0.7 (fraction of angular pitch)
         toothDepth: 4, // 4 to 14 pixels
-        backgroundColor: '#1a1a2e'
+        backgroundColor: '#1a1a2e',
+        motor: {
+            enabled: false,
+            rpmInput: 200,
+            torqueNm: 0.5
+        }
     }
+};
+
+state.outputShaftGearId = null;
+
+var MOTOR_PRESETS = {
+    small:      { rpmInput: 300,  torqueNm: 0.2,  label: 'Small DC Motor' },
+    medium:     { rpmInput: 150,  torqueNm: 0.5,  label: 'Medium DC Motor' },
+    large:      { rpmInput: 60,   torqueNm: 2.0,  label: 'Large DC Motor' },
+    high_speed: { rpmInput: 6000, torqueNm: 0.05, label: 'High-Speed Motor' }
 };
 
 // Canvas state

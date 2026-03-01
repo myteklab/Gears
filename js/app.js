@@ -2,6 +2,8 @@
 // Gears Application - Main Application
 // ============================================
 
+var isEmbedded = (window.parent !== window);
+
 // ============================================
 // Initialization
 // ============================================
@@ -22,6 +24,39 @@ function init() {
     requestAnimationFrame(gameLoop);
 
     updateUI();
+
+    // Embedded mode adjustments (when inside Robotics app)
+    if (isEmbedded) {
+        // Hide menu bar and status bar for cleaner embedded experience
+        var menuBar = document.querySelector('.menu-bar');
+        if (menuBar) menuBar.style.display = 'none';
+        var statusBar = document.querySelector('.status-bar');
+        if (statusBar) statusBar.style.display = 'none';
+
+        // Auto-enable motor mode
+        state.settings.motor.enabled = true;
+        updateMotorModeUI();
+
+        // Listen for messages from parent
+        window.addEventListener('message', function(event) {
+            var data = event.data;
+            if (!data || !data.type) return;
+
+            if (data.type === 'robotics:loadGears') {
+                if (data.gearsData && typeof loadProjectData === 'function') {
+                    loadProjectData(data.gearsData);
+                }
+            } else if (data.type === 'robotics:requestGearsState') {
+                sendGearsState();
+            }
+        });
+
+        // Notify parent that gears tool is ready
+        window.parent.postMessage({
+            type: 'robotics:childReady',
+            tool: 'gears'
+        }, '*');
+    }
 }
 
 function resizeCanvas() {
@@ -107,9 +142,16 @@ function update(deltaTime) {
 
         // Only rotate if not locked
         if (!locked) {
-            // Apply load to speed - more gears = slower rotation
-            const baseSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
-            const currentSpeed = baseSpeed * multiplier;
+            // Apply load to speed
+            var baseSpeed;
+            if (state.settings.motor && state.settings.motor.enabled) {
+                // Motor mode: derive speed from motor RPM
+                // Convert RPM to rotations/sec, then scale by direction
+                baseSpeed = (state.settings.motor.rpmInput / 60) * state.settings.spinDirection;
+            } else {
+                baseSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
+            }
+            var currentSpeed = baseSpeed * multiplier;
 
             driver.rotationSpeed = currentSpeed;
             driver.rotation += currentSpeed * deltaTime * Math.PI * 2;
@@ -130,6 +172,59 @@ function update(deltaTime) {
             }
         }
     });
+
+    // Update motor output metrics display (if motor mode)
+    if (state.settings.motor && state.settings.motor.enabled && typeof calculateMotorOutput === 'function') {
+        var motorOutput = calculateMotorOutput();
+        if (motorOutput) {
+            updateMotorMetrics(motorOutput);
+        }
+    }
+}
+
+function updateMotorMetrics(output) {
+    var el = document.getElementById('motorMetrics');
+    if (!el) return;
+
+    var ratioStr = output.gearRatio >= 1
+        ? output.gearRatio.toFixed(1) + ':1'
+        : '1:' + (1 / output.gearRatio).toFixed(1);
+
+    el.innerHTML =
+        '<div class="motor-metric"><span>Input</span><strong>' + output.inputRpm.toFixed(0) + ' RPM</strong></div>' +
+        '<div class="motor-metric"><span>Output</span><strong>' + output.outputRpm.toFixed(0) + ' RPM</strong></div>' +
+        '<div class="motor-metric"><span>Ratio</span><strong>' + ratioStr + '</strong></div>' +
+        '<div class="motor-metric"><span>Torque x</span><strong>' + output.gearRatio.toFixed(1) + 'x</strong></div>' +
+        '<div class="motor-metric"><span>Power</span><strong>' + output.power.toFixed(2) + ' W</strong></div>';
+}
+
+function sendGearsState() {
+    if (!isEmbedded) return;
+    var stateData = typeof serializeProject === 'function' ? serializeProject() : {};
+    var motorOutput = typeof calculateMotorOutput === 'function' ? calculateMotorOutput() : null;
+    window.parent.postMessage({
+        type: 'robotics:gearsState',
+        state: {
+            gearsData: stateData,
+            motorOutput: motorOutput
+        }
+    }, '*');
+}
+
+function updateMotorModeUI() {
+    // Toggle visibility of motor controls vs speed slider
+    var motorControls = document.getElementById('motorControls');
+    var speedControl = document.querySelector('.speed-control');
+    var toggleBtn = document.getElementById('motorToggleBtn');
+    if (state.settings.motor && state.settings.motor.enabled) {
+        if (motorControls) motorControls.style.display = 'block';
+        if (speedControl) speedControl.style.display = 'none';
+        if (toggleBtn) toggleBtn.textContent = 'Disable Motor Mode';
+    } else {
+        if (motorControls) motorControls.style.display = 'none';
+        if (speedControl) speedControl.style.display = '';
+        if (toggleBtn) toggleBtn.textContent = 'Enable Motor Mode';
+    }
 }
 
 // ============================================

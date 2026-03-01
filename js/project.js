@@ -7,7 +7,7 @@
 // ============================================
 function serializeProject() {
     return {
-        version: '1.0',
+        version: '1.1',
         settings: state.settings,
         gears: state.gears.map(g => ({
             id: g.id,
@@ -33,7 +33,8 @@ function serializeProject() {
             attachedToGear: o.attachedToGear,
             color: o.color
         })),
-        driverGearId: state.driverGearId
+        driverGearId: state.driverGearId,
+        outputShaftGearId: state.outputShaftGearId || null
     };
 }
 
@@ -74,6 +75,14 @@ function loadProjectData(data) {
     }
     if (data.driverGearId) {
         state.driverGearId = data.driverGearId;
+    }
+    if (data.outputShaftGearId) {
+        state.outputShaftGearId = data.outputShaftGearId;
+    }
+    // Motor settings come from data.settings (already merged above via Object.assign)
+    // Ensure motor defaults exist for older projects
+    if (!state.settings.motor) {
+        state.settings.motor = { enabled: false, rpmInput: 200, torqueNm: 0.5 };
     }
 
     // Update all gear connections and recalculate phase offsets

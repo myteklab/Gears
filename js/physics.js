@@ -355,3 +355,68 @@ function propagateManualRotation(driver) {
         }
     });
 }
+
+// Calculate total gear ratio from driver to a target gear via BFS
+function calculateTotalRatio(driverGear, targetGear) {
+    if (!driverGear || !targetGear) return 1;
+    if (driverGear.id === targetGear.id) return 1;
+
+    var visited = new Set([driverGear.id]);
+    var queue = [{ gear: driverGear, ratio: 1 }];
+
+    while (queue.length > 0) {
+        var current = queue.shift();
+
+        for (var i = 0; i < current.gear.meshingWith.length; i++) {
+            var connectedId = current.gear.meshingWith[i];
+            if (visited.has(connectedId)) continue;
+
+            var connected = state.gears.find(function(g) { return g.id === connectedId; });
+            if (!connected) continue;
+
+            var stepRatio = current.gear.teethCount / connected.teethCount;
+            var totalRatio = current.ratio * stepRatio;
+
+            if (connected.id === targetGear.id) {
+                return Math.abs(totalRatio);
+            }
+
+            visited.add(connectedId);
+            queue.push({ gear: connected, ratio: -totalRatio }); // negative for direction reversal
+        }
+    }
+
+    return 1; // Not connected
+}
+
+// Calculate motor output metrics using motor RPM/torque and gear ratio
+function calculateMotorOutput() {
+    var motor = state.settings.motor;
+    if (!motor || !motor.enabled) return null;
+
+    var driver = state.gears.find(function(g) { return g.id === state.driverGearId; });
+    if (!driver) return null;
+
+    var outputGear = state.outputShaftGearId
+        ? state.gears.find(function(g) { return g.id === state.outputShaftGearId; })
+        : null;
+
+    var gearRatio = outputGear ? calculateTotalRatio(driver, outputGear) : 1;
+
+    // Motor operating point: actualRPM = noLoadRPM * (1 - loadTorque / stallTorque)
+    // For now, use a simple model with gear ratio
+    var inputRpm = motor.rpmInput;
+    var inputTorque = motor.torqueNm;
+    var outputRpm = inputRpm / gearRatio;
+    var outputTorque = inputTorque * gearRatio;
+    var power = inputTorque * (inputRpm * Math.PI * 2 / 60); // P = T * omega
+
+    return {
+        inputRpm: inputRpm,
+        inputTorque: inputTorque,
+        gearRatio: gearRatio,
+        outputRpm: outputRpm,
+        outputTorque: outputTorque,
+        power: power
+    };
+}
