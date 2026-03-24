@@ -2,7 +2,7 @@
 // Gears Application - Main Application
 // ============================================
 
-var isEmbedded = (window.parent !== window);
+var isEmbedded = false;
 
 // ============================================
 // Initialization
@@ -25,40 +25,22 @@ function init() {
 
     updateUI();
 
-    // Embedded mode adjustments (when inside Robotics app)
-    if (isEmbedded) {
-        // Hide menu bar and status bar for cleaner embedded experience
-        var menuBar = document.querySelector('.menu-bar');
-        if (menuBar) menuBar.style.display = 'none';
-        var statusBar = document.querySelector('.status-bar');
-        if (statusBar) statusBar.style.display = 'none';
-
-        // Auto-enable motor mode
-        state.settings.motor.enabled = true;
-        updateMotorModeUI();
-
-        // Hide output palette (wheel is pre-attached in default train)
-        var outputSection = document.getElementById('outputPaletteSection');
-        if (outputSection) outputSection.style.display = 'none';
-
-        // Hide help icons for cleaner embedded UI
-        var helpIcons = document.querySelectorAll('.help-icon');
-        helpIcons.forEach(function(el) { el.style.display = 'none'; });
-
-        // Listen for messages from parent
+    // Listen for Robotics app embed messages (only activates embedded mode
+    // when the Robotics app explicitly signals, not just because we're in
+    // an iframe, since the platform also loads apps in iframes)
+    if (window.parent !== window) {
         window.addEventListener('message', function(event) {
             var data = event.data;
             if (!data || !data.type) return;
 
             if (data.type === 'robotics:loadGears') {
+                if (!isEmbedded) activateEmbeddedMode();
                 if (data.gearsData && typeof loadProjectData === 'function') {
                     loadProjectData(data.gearsData);
                 }
-                // If loading resulted in no gears (empty save), create default
                 if (state.gears.length === 0) {
                     createDefaultGearTrain();
                 } else {
-                    // Auto-play loaded gear train
                     if (!isPlaying && typeof togglePlay === 'function') {
                         togglePlay();
                     }
@@ -67,20 +49,43 @@ function init() {
                 sendGearsState();
             }
         });
-
-        // Notify parent that gears tool is ready
-        window.parent.postMessage({
-            type: 'robotics:childReady',
-            tool: 'gears'
-        }, '*');
-
-        // If no saved data arrives, create a default gear train after a short delay
-        setTimeout(function() {
-            if (state.gears.length === 0) {
-                createDefaultGearTrain();
-            }
-        }, 500);
     }
+}
+
+// Activate embedded mode (called only when Robotics app signals)
+function activateEmbeddedMode() {
+    isEmbedded = true;
+
+    // Hide menu bar and status bar for cleaner embedded experience
+    var menuBar = document.querySelector('.menu-bar');
+    if (menuBar) menuBar.style.display = 'none';
+    var statusBar = document.querySelector('.status-bar');
+    if (statusBar) statusBar.style.display = 'none';
+
+    // Auto-enable motor mode
+    state.settings.motor.enabled = true;
+    updateMotorModeUI();
+
+    // Hide output palette (wheel is pre-attached in default train)
+    var outputSection = document.getElementById('outputPaletteSection');
+    if (outputSection) outputSection.style.display = 'none';
+
+    // Hide help icons for cleaner embedded UI
+    var helpIcons = document.querySelectorAll('.help-icon');
+    helpIcons.forEach(function(el) { el.style.display = 'none'; });
+
+    // Notify parent that gears tool is ready
+    window.parent.postMessage({
+        type: 'robotics:childReady',
+        tool: 'gears'
+    }, '*');
+
+    // If no saved data arrives, create a default gear train after a short delay
+    setTimeout(function() {
+        if (state.gears.length === 0) {
+            createDefaultGearTrain();
+        }
+    }, 500);
 }
 
 function resizeCanvas() {
