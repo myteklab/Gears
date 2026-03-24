@@ -74,6 +74,48 @@ function setupControlEvents() {
             document.getElementById('compoundTeethValue').textContent = e.target.value;
         });
     }
+
+    // Crane weight slider
+    var craneWeightSlider = document.getElementById('craneWeightSlider');
+    if (craneWeightSlider) {
+        craneWeightSlider.addEventListener('input', e => {
+            var val = parseFloat(e.target.value);
+            document.getElementById('craneWeightValue').textContent = val.toFixed(1);
+            var output = state.outputs.find(o => o.id === state.selectedOutputId);
+            if (output && output.payload) {
+                output.payload.weightKg = val;
+                window.isDirty = true;
+            }
+        });
+    }
+
+    // Crane rope length slider
+    var craneRopeSlider = document.getElementById('craneRopeSlider');
+    if (craneRopeSlider) {
+        craneRopeSlider.addEventListener('input', e => {
+            var val = parseInt(e.target.value);
+            document.getElementById('craneRopeValue').textContent = val;
+            var output = state.outputs.find(o => o.id === state.selectedOutputId);
+            if (output && output.payload) {
+                output.payload.ropeLength = val;
+                window.isDirty = true;
+            }
+        });
+    }
+
+    // Generator max watts slider
+    var genWattsSlider = document.getElementById('genMaxWattsSlider');
+    if (genWattsSlider) {
+        genWattsSlider.addEventListener('input', e => {
+            var val = parseInt(e.target.value);
+            document.getElementById('genMaxWattsValue').textContent = val;
+            var output = state.outputs.find(o => o.id === state.selectedOutputId);
+            if (output && output.payload) {
+                output.payload.maxWatts = val;
+                window.isDirty = true;
+            }
+        });
+    }
 }
 
 // ============================================
@@ -151,8 +193,49 @@ function updateUI() {
         }
     } else {
         selectedPanel.style.display = 'none';
-        noSelectionPanel.style.display = 'block';
+        if (!state.selectedOutputId) {
+            noSelectionPanel.style.display = 'block';
+        }
         document.getElementById('gearRatio').textContent = '-';
+    }
+
+    // Update selected output panel
+    var outputPanel = document.getElementById('selectedOutputPanel');
+    if (outputPanel) {
+        if (state.selectedOutputId) {
+            var output = state.outputs.find(o => o.id === state.selectedOutputId);
+            if (output) {
+                outputPanel.style.display = 'block';
+                noSelectionPanel.style.display = 'none';
+                selectedPanel.style.display = 'none';
+
+                var craneCtrl = document.getElementById('craneControls');
+                var genCtrl = document.getElementById('generatorControls');
+                if (craneCtrl) craneCtrl.style.display = output.type === 'crane' ? 'block' : 'none';
+                if (genCtrl) genCtrl.style.display = output.type === 'generator' ? 'block' : 'none';
+
+                if (output.type === 'crane' && output.payload) {
+                    var weightSlider = document.getElementById('craneWeightSlider');
+                    var weightVal = document.getElementById('craneWeightValue');
+                    var ropeSlider = document.getElementById('craneRopeSlider');
+                    var ropeVal = document.getElementById('craneRopeValue');
+                    if (weightSlider) weightSlider.value = output.payload.weightKg;
+                    if (weightVal) weightVal.textContent = output.payload.weightKg.toFixed(1);
+                    if (ropeSlider) ropeSlider.value = output.payload.ropeLength;
+                    if (ropeVal) ropeVal.textContent = output.payload.ropeLength;
+                }
+                if (output.type === 'generator' && output.payload) {
+                    var wattsSlider = document.getElementById('genMaxWattsSlider');
+                    var wattsVal = document.getElementById('genMaxWattsValue');
+                    if (wattsSlider) wattsSlider.value = output.payload.maxWatts;
+                    if (wattsVal) wattsVal.textContent = output.payload.maxWatts;
+                }
+            } else {
+                outputPanel.style.display = 'none';
+            }
+        } else {
+            outputPanel.style.display = 'none';
+        }
     }
 
     // Update grid status

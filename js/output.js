@@ -19,7 +19,7 @@ function createOutput(type, x, y) {
 
     // Initialize payload data for special output types
     if (type === 'crane') {
-        output.payload = { weightKg: 2.0, ropeLength: 100, liftedHeight: 0 };
+        output.payload = { weightKg: 2.0, ropeLength: 150, liftedHeight: 0 };
     } else if (type === 'generator') {
         output.payload = { maxWatts: 10, brightness: 0 };
     }
@@ -212,11 +212,11 @@ function drawWheel(output) {
 }
 
 function drawCrane(output) {
-    var p = output.payload || { weightKg: 2, ropeLength: 100, liftedHeight: 0 };
+    var p = output.payload || { weightKg: 2, ropeLength: 150, liftedHeight: 0 };
     var drumR = 14;
-    var ropeLen = p.ropeLength || 100;
-    var lifted = p.liftedHeight || 0;
-    var weightY = ropeLen - lifted;
+    var ropeLen = p.ropeLength || 150;
+    var lifted = Math.max(0, p.liftedHeight || 0);
+    var ropeVisible = ropeLen - lifted;
 
     // Winch drum (rotates with gear)
     ctx.beginPath();
@@ -230,6 +230,16 @@ function drawCrane(output) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    // Rope wrapping indicator on drum (shows how much is wound)
+    var wrapFraction = lifted / ropeLen;
+    if (wrapFraction > 0.01) {
+        ctx.beginPath();
+        ctx.arc(0, 0, drumR - 3, -Math.PI / 2, -Math.PI / 2 + wrapFraction * Math.PI * 2);
+        ctx.strokeStyle = '#bdc3c7';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
     // Axle
     ctx.beginPath();
     ctx.arc(0, 0, 4, 0, Math.PI * 2);
@@ -239,26 +249,38 @@ function drawCrane(output) {
     // Rope and weight must NOT rotate - counter-rotate
     ctx.rotate(-output.rotation);
 
-    // Support arm
+    // Support arm (bracket below drum)
     ctx.beginPath();
-    ctx.moveTo(0, drumR);
-    ctx.lineTo(0, drumR + 8);
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 4;
+    ctx.moveTo(-6, drumR);
+    ctx.lineTo(-6, drumR + 10);
+    ctx.lineTo(6, drumR + 10);
+    ctx.lineTo(6, drumR);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     // Rope
+    var ropeStartY = drumR + 10;
     ctx.beginPath();
-    ctx.moveTo(0, drumR + 8);
-    ctx.lineTo(0, drumR + 8 + weightY);
-    ctx.strokeStyle = '#bdc3c7';
+    ctx.moveTo(0, ropeStartY);
+    ctx.lineTo(0, ropeStartY + ropeVisible);
+    ctx.strokeStyle = '#95a5a6';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Weight block
-    var blockW = 28;
-    var blockH = 22;
-    var blockY = drumR + 8 + weightY;
+    // Weight block (size scales with weight)
+    var blockScale = 0.6 + (p.weightKg / 20) * 0.8; // 0.6 at 0.5kg, 1.4 at 20kg
+    var blockW = 30 * blockScale;
+    var blockH = 24 * blockScale;
+    var blockY = ropeStartY + ropeVisible;
+
+    // Block shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.roundRect(-blockW / 2 + 2, blockY + 2, blockW, blockH, 3);
+    ctx.fill();
+
+    // Block body
     ctx.fillStyle = '#c0392b';
     ctx.beginPath();
     ctx.roundRect(-blockW / 2, blockY, blockW, blockH, 3);
@@ -267,20 +289,53 @@ function drawCrane(output) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    // Weight stripes (visual mass indicator)
+    ctx.strokeStyle = '#a93226';
+    ctx.lineWidth = 1;
+    for (var s = 0; s < Math.min(p.weightKg / 3, 4); s++) {
+        var sy = blockY + 5 + s * (blockH - 8) / 4;
+        ctx.beginPath();
+        ctx.moveTo(-blockW / 2 + 4, sy);
+        ctx.lineTo(blockW / 2 - 4, sy);
+        ctx.stroke();
+    }
+
     // Weight label
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px sans-serif';
+    ctx.font = 'bold ' + Math.max(9, 10 * blockScale) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(p.weightKg.toFixed(1) + 'kg', 0, blockY + blockH / 2);
 
-    // Height indicator (small text)
-    if (lifted > 0) {
-        var heightM = (lifted / 20).toFixed(1); // scale: 20px = 1m
+    // Height display (right side, shows how far the weight has been lifted)
+    if (lifted > 5) {
+        // Scale: 20px = 1m (so drum circumference 2*pi*14 = ~88px = ~4.4m per revolution)
+        var heightM = (lifted / 20).toFixed(1);
         ctx.fillStyle = '#2ecc71';
-        ctx.font = '9px sans-serif';
-        ctx.fillText(heightM + 'm', 18, blockY + blockH / 2);
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'left';
+
+        // Arrow line showing lift
+        var arrowX = blockW / 2 + 8;
+        ctx.beginPath();
+        ctx.moveTo(arrowX, ropeStartY + ropeLen);
+        ctx.lineTo(arrowX, blockY + blockH);
+        ctx.strokeStyle = '#2ecc71';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Height text
+        ctx.fillText(heightM + 'm', arrowX + 4, blockY + blockH / 2);
     }
+
+    // Torque required label (below weight)
+    var torqueRequired = (p.weightKg * 9.81 * drumR * 0.001).toFixed(2); // T = m*g*r (r in meters: 14px ~= 0.014m scaled up)
+    ctx.fillStyle = '#f39c12';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(torqueRequired + ' Nm needed', 0, blockY + blockH + 14);
 }
 
 function drawGenerator(output) {

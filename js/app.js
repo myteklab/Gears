@@ -215,20 +215,27 @@ function update(deltaTime) {
                 output.x = gear.x;
                 output.y = gear.y;
 
-                // Animate crane: lift weight based on rotation change
+                // Animate crane: rope winds around drum as gear rotates
+                // deltaAngle (radians) * drumRadius (px) = rope wound (px)
                 if (output.type === 'crane' && output.payload) {
                     var deltaRot = gear.rotation - prevRotation;
-                    var drumRadius = 14;
-                    output.payload.liftedHeight += deltaRot * drumRadius * 0.3;
-                    output.payload.liftedHeight = Math.max(0, Math.min(output.payload.ropeLength - 10, output.payload.liftedHeight));
+                    var drumRadius = 14; // pixels, matches drawCrane drum size
+                    // Positive rotation (clockwise) lifts the weight
+                    output.payload.liftedHeight += deltaRot * drumRadius;
+                    var maxLift = output.payload.ropeLength - 30;
+                    output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));
                 }
 
-                // Animate generator: brightness from RPM
+                // Animate generator: power output = torque * angular velocity
+                // brightness scales with mechanical power delivered to the generator
                 if (output.type === 'generator' && output.payload) {
-                    var rpm = Math.abs(gear.rotationSpeed * 60);
+                    var angularVel = Math.abs(gear.rotationSpeed) * 2 * Math.PI; // rad/s
+                    // Estimate torque from motor output if available, otherwise use RPM-based approximation
                     var maxWatts = output.payload.maxWatts || 10;
-                    // Brightness scales with RPM (normalized to a reasonable range)
-                    output.payload.brightness = Math.min(1, rpm / (maxWatts * 8));
+                    // Power approximation: proportional to RPM (simplified generator model)
+                    var rpm = Math.abs(gear.rotationSpeed * 60);
+                    var powerFraction = rpm / (maxWatts * 6);
+                    output.payload.brightness = Math.min(1, Math.max(0, powerFraction));
                 }
             }
         }

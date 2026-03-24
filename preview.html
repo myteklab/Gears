@@ -314,12 +314,14 @@
 
                         if (output.type === 'crane' && output.payload) {
                             var deltaRot = gear.rotation - prevRotation;
-                            output.payload.liftedHeight += deltaRot * 14 * 0.3;
-                            output.payload.liftedHeight = Math.max(0, Math.min(output.payload.ropeLength - 10, output.payload.liftedHeight));
+                            output.payload.liftedHeight += deltaRot * 14;
+                            var maxLift = output.payload.ropeLength - 30;
+                            output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));
                         }
                         if (output.type === 'generator' && output.payload) {
                             var rpm = Math.abs(gear.rotationSpeed * 60);
-                            output.payload.brightness = Math.min(1, rpm / ((output.payload.maxWatts || 10) * 8));
+                            var powerFraction = rpm / ((output.payload.maxWatts || 10) * 6);
+                            output.payload.brightness = Math.min(1, Math.max(0, powerFraction));
                         }
                     }
                 }
