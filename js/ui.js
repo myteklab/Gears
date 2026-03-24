@@ -68,9 +68,12 @@ function setupControlEvents() {
     });
 
     // Compound gear teeth slider
-    document.getElementById('compoundTeethSlider').addEventListener('input', e => {
-        document.getElementById('compoundTeethValue').textContent = e.target.value;
-    });
+    var compoundSlider = document.getElementById('compoundTeethSlider');
+    if (compoundSlider) {
+        compoundSlider.addEventListener('input', e => {
+            document.getElementById('compoundTeethValue').textContent = e.target.value;
+        });
+    }
 }
 
 // ============================================
