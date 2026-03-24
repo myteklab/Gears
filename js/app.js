@@ -216,16 +216,18 @@ function update(deltaTime) {
                 output.y = gear.y;
 
                 // Animate crane: rope winds around drum as gear rotates
-                // Signed delta: positive rotation = lift, negative = lower
+                // Direction button controls lift (forward) vs lower (reverse)
                 if (output.type === 'crane' && output.payload) {
                     if (!output.payload.liftedHeight || isNaN(output.payload.liftedHeight)) {
                         output.payload.liftedHeight = 0;
                     }
-                    var deltaRot = gear.rotation - prevRotation;
+                    var deltaRot = Math.abs(gear.rotation - prevRotation);
                     // Ignore large jumps (e.g. first frame after load or direction change)
-                    if (Math.abs(deltaRot) > 0.5) deltaRot = 0;
+                    if (deltaRot > 0.5) deltaRot = 0;
                     var drumRadius = 14; // pixels, matches drawCrane drum size
-                    output.payload.liftedHeight += deltaRot * drumRadius;
+                    // spinDirection controls lift vs lower: forward (1) = lift, reverse (-1) = lower
+                    var liftDelta = deltaRot * drumRadius * state.settings.spinDirection;
+                    output.payload.liftedHeight += liftDelta;
                     var ropeLen = output.payload.ropeLength || 150;
                     var maxLift = ropeLen - 30;
                     output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));
