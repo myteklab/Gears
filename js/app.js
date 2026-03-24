@@ -230,15 +230,18 @@ function updateMotorMetrics(output) {
     var el = document.getElementById('motorMetrics');
     if (!el) return;
 
-    var ratioStr = output.gearRatio >= 1
-        ? output.gearRatio.toFixed(1) + ':1'
-        : '1:' + (1 / output.gearRatio).toFixed(1);
+    // gearRatio = driver_teeth/output_teeth (e.g. 1/6 for 8->48)
+    // Reduction ratio for display: output_teeth/driver_teeth (e.g. 6:1)
+    var reductionRatio = 1 / output.gearRatio;
+    var ratioStr = reductionRatio >= 1
+        ? reductionRatio.toFixed(1) + ':1'
+        : '1:' + (1 / reductionRatio).toFixed(1);
 
     el.innerHTML =
         '<div class="motor-metric"><span>Input</span><strong>' + output.inputRpm.toFixed(0) + ' RPM</strong></div>' +
         '<div class="motor-metric"><span>Output</span><strong>' + output.outputRpm.toFixed(0) + ' RPM</strong></div>' +
         '<div class="motor-metric"><span>Ratio</span><strong>' + ratioStr + '</strong></div>' +
-        '<div class="motor-metric"><span>Torque x</span><strong>' + output.gearRatio.toFixed(1) + 'x</strong></div>' +
+        '<div class="motor-metric"><span>Torque x</span><strong>' + reductionRatio.toFixed(1) + 'x</strong></div>' +
         '<div class="motor-metric"><span>Power</span><strong>' + output.power.toFixed(2) + ' W</strong></div>';
 }
 

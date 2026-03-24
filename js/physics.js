@@ -407,12 +407,13 @@ function calculateMotorOutput() {
 
     var gearRatio = outputGear ? calculateTotalRatio(driver, outputGear) : 1;
 
-    // Motor operating point: actualRPM = noLoadRPM * (1 - loadTorque / stallTorque)
-    // For now, use a simple model with gear ratio
+    // gearRatio from calculateTotalRatio = driver_teeth / output_teeth
+    // e.g. 8-tooth driver, 48-tooth output => gearRatio = 1/6
+    // Output spins slower by that factor, torque increases by the inverse
     var inputRpm = motor.rpmInput;
     var inputTorque = motor.torqueNm;
-    var outputRpm = inputRpm / gearRatio;
-    var outputTorque = inputTorque * gearRatio;
+    var outputRpm = inputRpm * gearRatio;
+    var outputTorque = inputTorque / gearRatio;
     var power = inputTorque * (inputRpm * Math.PI * 2 / 60); // P = T * omega
 
     return {
