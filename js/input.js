@@ -65,10 +65,14 @@ function setupKeyboardShortcuts() {
             }
         }
 
-        // Space to toggle play
+        // Space: hold for pan mode, tap for play toggle
         if (e.key === ' ' && document.activeElement === document.body) {
             e.preventDefault();
-            togglePlay();
+            if (!spaceHeld) {
+                spaceHeld = true;
+                spaceDragged = false;
+                canvas.style.cursor = 'grab';
+            }
         }
 
         // Escape to deselect
@@ -76,6 +80,19 @@ function setupKeyboardShortcuts() {
             state.selectedGearId = null;
             state.selectedOutputId = null;
             updateUI();
+        }
+    });
+
+    document.addEventListener('keyup', e => {
+        if (e.key === ' ' && document.activeElement === document.body) {
+            e.preventDefault();
+            if (!spaceDragged) {
+                // Space was tapped without dragging: toggle play
+                togglePlay();
+            }
+            spaceHeld = false;
+            spaceDragged = false;
+            if (!isDragging) canvas.style.cursor = 'default';
         }
     });
 }
@@ -97,6 +114,13 @@ function onMouseDown(e) {
     const hitGear = hitTestGear(mouseX, mouseY);
 
     if (e.button === 0) { // Left click
+        // Space+click = pan (for trackpad users)
+        if (spaceHeld) {
+            isDragging = true;
+            dragTarget = { type: 'pan' };
+            canvas.style.cursor = 'grabbing';
+            return;
+        }
         if (hitOutput) {
             // Clicked on an output - select and start dragging
             state.selectedOutputId = hitOutput.id;
@@ -226,6 +250,7 @@ function onMouseMove(e) {
         } else if (dragTarget.type === 'pan') {
             panX += e.clientX - lastMouseX;
             panY += e.clientY - lastMouseY;
+            if (spaceHeld) spaceDragged = true;
         }
     } else {
         // Update cursor based on what's under mouse

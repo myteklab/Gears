@@ -261,6 +261,8 @@ let dragTarget = null;
 let dragOffsetX = 0, dragOffsetY = 0;
 let spinStartAngle = 0;
 let lastMouseX = 0, lastMouseY = 0;
+let spaceHeld = false;
+let spaceDragged = false;
 
 // Animation state
 let isPlaying = false;

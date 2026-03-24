@@ -221,13 +221,29 @@ function update(deltaTime) {
                     if (!output.payload.liftedHeight || isNaN(output.payload.liftedHeight)) {
                         output.payload.liftedHeight = 0;
                     }
-                    var deltaRot = Math.abs(gear.rotation - prevRotation);
-                    // Ignore large jumps (e.g. first frame after load or direction change)
-                    if (deltaRot > 0.5) deltaRot = 0;
-                    var drumRadius = 14; // pixels, matches drawCrane drum size
-                    // spinDirection controls lift vs lower: forward (1) = lift, reverse (-1) = lower
-                    var liftDelta = deltaRot * drumRadius * state.settings.spinDirection;
-                    output.payload.liftedHeight += liftDelta;
+
+                    // Check for stall: if weight requires more torque than available,
+                    // the motor can't lift it. T_required = m * g * r_drum
+                    // Scale: 14px drum = 0.07m radius for torque calculation
+                    var drumRadiusM = 0.07;
+                    var requiredTorque = output.payload.weightKg * 9.81 * drumRadiusM;
+                    var stalled = false;
+                    if (state.settings.motor && state.settings.motor.enabled) {
+                        var motorOut = typeof calculateMotorOutput === 'function' ? calculateMotorOutput() : null;
+                        if (motorOut && requiredTorque > motorOut.outputTorque && state.settings.spinDirection > 0) {
+                            stalled = true;
+                        }
+                    }
+                    output.payload.stalled = stalled;
+
+                    if (!stalled) {
+                        var deltaRot = Math.abs(gear.rotation - prevRotation);
+                        if (deltaRot > 0.5) deltaRot = 0;
+                        var drumRadius = 14; // pixels
+                        var liftDelta = deltaRot * drumRadius * state.settings.spinDirection;
+                        output.payload.liftedHeight += liftDelta;
+                    }
+
                     var ropeLen = output.payload.ropeLength || 150;
                     var maxLift = ropeLen - 30;
                     output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));

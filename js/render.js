@@ -220,6 +220,20 @@ function drawGear(gear) {
     ctx.fillStyle = gradient;
     ctx.fill();
 
+    // For compound gears: draw a contrasting half-fill so rotation speed
+    // is visually unambiguous (overrides the tooth-density illusion)
+    if (gear.shaftId) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, gear.radius, -Math.PI / 2, Math.PI / 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.fillRect(-gear.radius, -gear.radius, gear.radius * 2, gear.radius * 2);
+        ctx.restore();
+    }
+
     // Stroke outline
     ctx.strokeStyle = darkenColor(gear.color, 30);
     ctx.lineWidth = 2;
@@ -242,29 +256,29 @@ function drawGear(gear) {
 
     // Draw shaft indicator for compound gears
     if (gear.shaftId) {
-        // Teal dashed ring around center
+        // Teal ring around center
         ctx.strokeStyle = '#00bcd4';
         ctx.lineWidth = 2;
-        ctx.setLineDash([3, 3]);
         ctx.beginPath();
         ctx.arc(0, 0, 12, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.setLineDash([]);
 
-        // Radial reference line from center to outer edge
-        // This makes it visually obvious that compound gears rotate together
+        // Bold reference line from center to edge (diameter)
         var outerR = gear.radius + state.settings.toothDepth;
         ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(0, -outerR);
-        ctx.strokeStyle = 'rgba(0, 188, 212, 0.6)';
-        ctx.lineWidth = 2.5;
+        ctx.moveTo(0, -outerR);
+        ctx.lineTo(0, outerR);
+        ctx.strokeStyle = 'rgba(0, 188, 212, 0.7)';
+        ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Small dot at the end of the reference line
-        ctx.beginPath();
-        ctx.arc(0, -outerR + 3, 3, 0, Math.PI * 2);
+        // Dots at both ends
         ctx.fillStyle = '#00bcd4';
+        ctx.beginPath();
+        ctx.arc(0, -outerR + 3, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, outerR - 3, 3.5, 0, Math.PI * 2);
         ctx.fill();
     }
 

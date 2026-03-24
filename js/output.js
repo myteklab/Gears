@@ -331,11 +331,22 @@ function drawCrane(output) {
     }
 
     // Torque required label (below weight)
-    var torqueRequired = (p.weightKg * 9.81 * drumR * 0.001).toFixed(2); // T = m*g*r (r in meters: 14px ~= 0.014m scaled up)
-    ctx.fillStyle = '#f39c12';
+    var drumRadiusM = 0.07; // 14px = 0.07m for torque calc
+    var torqueRequired = (p.weightKg * 9.81 * drumRadiusM).toFixed(2);
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(torqueRequired + ' Nm needed', 0, blockY + blockH + 14);
+
+    if (p.stalled) {
+        // Stall warning
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('STALLED', 0, blockY + blockH + 14);
+        ctx.font = '9px sans-serif';
+        ctx.fillText('Need ' + torqueRequired + ' Nm', 0, blockY + blockH + 26);
+    } else {
+        ctx.fillStyle = '#f39c12';
+        ctx.fillText(torqueRequired + ' Nm', 0, blockY + blockH + 14);
+    }
 }
 
 function drawGenerator(output) {
