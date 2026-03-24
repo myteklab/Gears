@@ -225,6 +225,11 @@ function update(deltaTime) {
                     output.payload.liftedHeight += deltaRot * drumRadius;
                     var maxLift = output.payload.ropeLength - 30;
                     output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));
+                    // DEBUG: log every 60 frames
+                    if (!window._craneDebugCount) window._craneDebugCount = 0;
+                    if (++window._craneDebugCount % 60 === 0) {
+                        console.log('[CRANE]', 'gearRot:', gear.rotation.toFixed(4), 'prevRot:', prevRotation.toFixed(4), 'delta:', deltaRot.toFixed(6), 'lifted:', output.payload.liftedHeight.toFixed(2), 'attached:', output.attachedToGear);
+                    }
                 }
 
                 // Animate generator: power output = torque * angular velocity
