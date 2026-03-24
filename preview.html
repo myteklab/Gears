@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gears Preview</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Loading state */
+        #waiting-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #888;
+            text-align: center;
+            font-size: 14px;
+        }
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(108, 92, 231, 0.3);
+            border-top: 3px solid #6c5ce7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Floating controls */
+        .preview-controls {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: rgba(30, 30, 50, 0.9);
+            border: 1px solid rgba(108, 92, 231, 0.3);
+            border-radius: 10px;
+            padding: 8px 16px;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+        .preview-controls.visible {
+            display: flex;
+        }
+
+        .ctrl-btn {
+            background: rgba(108, 92, 231, 0.2);
+            border: 1px solid rgba(108, 92, 231, 0.4);
+            color: #fff;
+            border-radius: 6px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.15s;
+        }
+        .ctrl-btn:hover {
+            background: rgba(108, 92, 231, 0.4);
+        }
+        .ctrl-btn.playing {
+            background: rgba(231, 76, 60, 0.3);
+            border-color: rgba(231, 76, 60, 0.5);
+        }
+
+        .speed-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #aaa;
+            font-size: 12px;
+        }
+        .speed-group input[type="range"] {
+            width: 80px;
+            accent-color: #6c5ce7;
+        }
+        .speed-val {
+            color: #ddd;
+            font-weight: 600;
+            min-width: 28px;
+            text-align: center;
+        }
+
+        .direction-btn {
+            background: rgba(108, 92, 231, 0.2);
+            border: 1px solid rgba(108, 92, 231, 0.4);
+            color: #fff;
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .direction-btn:hover {
+            background: rgba(108, 92, 231, 0.4);
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            padding: 10px 18px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+            z-index: 100;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+        }
+        .toast.info { background: rgba(52, 152, 219, 0.9); }
+        .toast.success { background: rgba(46, 204, 113, 0.9); }
+    </style>
+</head>
+<body>
+    <div id="waiting-msg">
+        <div class="loading-spinner"></div>
+        Loading gears...
+    </div>
+    <canvas id="gearCanvas" style="display:none;"></canvas>
+
+    <div class="preview-controls" id="controls">
+        <button class="ctrl-btn" id="playBtn" title="Play / Stop (Space)">
+            <span id="playIcon">&#9654;</span>
+            <span id="playText">Play</span>
+        </button>
+        <button class="direction-btn" id="directionBtn" title="Toggle rotation direction">&#8635;</button>
+        <div class="speed-group">
+            <span>Speed</span>
+            <input type="range" id="speedSlider" min="0.2" max="10" step="0.2" value="1">
+            <span class="speed-val" id="speedValue">1x</span>
+        </div>
+    </div>
+
+    <!-- Core gear modules (rendering, physics, data) -->
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/gear.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/output.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/project.js"></script>
+
+    <script>
+    (function() {
+        // =============================================
+        // Stub functions that editor modules expect
+        // =============================================
+        window.updateUI = function() {};
+        window.syncSettingsUI = function() {};
+
+        // =============================================
+        // Preview initialization
+        // =============================================
+        var previewReady = false;
+
+        function initPreview(data) {
+            canvas = document.getElementById('gearCanvas');
+            ctx = canvas.getContext('2d');
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Hide grid for cleaner preview
+            state.settings.gridSnap = false;
+
+            // Load the project data
+            loadProjectData(data);
+
+            // Center the view on the gears
+            centerOnGears();
+
+            // Show canvas and controls
+            document.getElementById('waiting-msg').style.display = 'none';
+            canvas.style.display = 'block';
+            document.getElementById('controls').classList.add('visible');
+
+            // Setup interactive controls
+            setupPreviewControls();
+            setupPreviewInput();
+
+            // Start render loop
+            lastTime = 0;
+            requestAnimationFrame(gameLoop);
+
+            // Auto-play
+            togglePlay();
+
+            previewReady = true;
+        }
+
+        function resizeCanvas() {
+            canvasWidth = window.innerWidth;
+            canvasHeight = window.innerHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+        }
+
+        // =============================================
+        // Center view on gear bounds
+        // =============================================
+        function centerOnGears() {
+            if (state.gears.length === 0) return;
+
+            var toothDepth = state.settings.toothDepth;
+            var minX = Infinity, maxX = -Infinity;
+            var minY = Infinity, maxY = -Infinity;
+
+            state.gears.forEach(function(gear) {
+                var r = gear.radius + toothDepth + 15;
+                if (gear.x - r < minX) minX = gear.x - r;
+                if (gear.x + r > maxX) maxX = gear.x + r;
+                if (gear.y - r < minY) minY = gear.y - r;
+                if (gear.y + r > maxY) maxY = gear.y + r;
+            });
+
+            // Include outputs
+            state.outputs.forEach(function(output) {
+                var r = 70;
+                if (output.x - r < minX) minX = output.x - r;
+                if (output.x + r > maxX) maxX = output.x + r;
+                if (output.y - r < minY) minY = output.y - r;
+                if (output.y + r > maxY) maxY = output.y + r;
+            });
+
+            var contentW = maxX - minX;
+            var contentH = maxY - minY;
+            var centerX = (minX + maxX) / 2;
+            var centerY = (minY + maxY) / 2;
+
+            // Fit with padding
+            var padding = 60;
+            var scaleX = (canvasWidth - padding * 2) / contentW;
+            var scaleY = (canvasHeight - padding * 2) / contentH;
+            zoom = Math.min(scaleX, scaleY, 2);
+
+            panX = canvasWidth / 2 - centerX * zoom;
+            panY = canvasHeight / 2 - centerY * zoom;
+        }
+
+        // =============================================
+        // Game loop (same as app.js but simpler)
+        // =============================================
+        function gameLoop(timestamp) {
+            var deltaTime = lastTime ? (timestamp - lastTime) / 1000 : 0;
+            lastTime = timestamp;
+            deltaTime = Math.min(deltaTime, 0.1);
+
+            if (isPlaying) {
+                update(deltaTime);
+            }
+
+            render();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function update(deltaTime) {
+            var driver = state.gears.find(function(g) { return g.id === state.driverGearId; });
+            if (!driver) return;
+
+            var result = calculateSystemLoad();
+            if (result.locked) return;
+
+            var baseSpeed, currentSpeed, visualSpeed;
+            if (state.settings.motor && state.settings.motor.enabled) {
+                baseSpeed = (state.settings.motor.rpmInput / 60) * state.settings.spinDirection;
+                currentSpeed = baseSpeed;
+                var absSpeed = Math.abs(baseSpeed);
+                var maxVisualRotPerSec = 8;
+                var visualScale = absSpeed > maxVisualRotPerSec ? maxVisualRotPerSec / absSpeed : 1;
+                visualSpeed = baseSpeed * visualScale;
+            } else {
+                baseSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
+                currentSpeed = baseSpeed * result.multiplier;
+                visualSpeed = currentSpeed;
+            }
+
+            driver.rotationSpeed = currentSpeed;
+            driver.rotation += visualSpeed * deltaTime * Math.PI * 2;
+            synchronizeGearRotations(driver);
+
+            // Update outputs
+            state.outputs.forEach(function(output) {
+                if (output.attachedToGear) {
+                    var gear = state.gears.find(function(g) { return g.id === output.attachedToGear; });
+                    if (gear) {
+                        output.rotation = gear.rotation;
+                        output.x = gear.x;
+                        output.y = gear.y;
+                    }
+                }
+            });
+        }
+
+        // =============================================
+        // Playback controls
+        // =============================================
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            var btn = document.getElementById('playBtn');
+            var icon = document.getElementById('playIcon');
+            var text = document.getElementById('playText');
+
+            if (isPlaying) {
+                btn.classList.add('playing');
+                icon.innerHTML = '&#9632;';
+                text.textContent = 'Stop';
+                if (!state.driverGearId && state.gears.length > 0) {
+                    setDriverGear(state.gears[0].id);
+                }
+            } else {
+                btn.classList.remove('playing');
+                icon.innerHTML = '&#9654;';
+                text.textContent = 'Play';
+            }
+        }
+        window.togglePlay = togglePlay;
+
+        function setupPreviewControls() {
+            document.getElementById('playBtn').addEventListener('click', togglePlay);
+
+            var speedSlider = document.getElementById('speedSlider');
+            var speedVal = document.getElementById('speedValue');
+            speedSlider.value = state.settings.spinSpeed;
+            speedVal.textContent = (state.settings.spinSpeed % 1 ? state.settings.spinSpeed.toFixed(1) : state.settings.spinSpeed) + 'x';
+
+            speedSlider.addEventListener('input', function(e) {
+                var val = +e.target.value;
+                state.settings.spinSpeed = val;
+                speedVal.textContent = (val % 1 ? val.toFixed(1) : val) + 'x';
+            });
+
+            var dirBtn = document.getElementById('directionBtn');
+            dirBtn.addEventListener('click', function() {
+                state.settings.spinDirection *= -1;
+                dirBtn.textContent = state.settings.spinDirection === 1 ? '\u21BB' : '\u21BA';
+                propagateRotation();
+            });
+
+            // Space to toggle play
+            document.addEventListener('keydown', function(e) {
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    togglePlay();
+                }
+            });
+        }
+
+        // =============================================
+        // Canvas interaction (zoom, pan, spin driver)
+        // =============================================
+        function setupPreviewInput() {
+            canvas.addEventListener('mousedown', onDown);
+            canvas.addEventListener('mousemove', onMove);
+            canvas.addEventListener('mouseup', onUp);
+            canvas.addEventListener('mouseleave', onUp);
+            canvas.addEventListener('wheel', onScroll, { passive: false });
+            canvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+            // Touch support
+            canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+            canvas.addEventListener('touchend', onTouchEnd);
+        }
+
+        var dragging = false;
+        var dragMode = null; // 'pan' or 'spin'
+        var prevX = 0, prevY = 0;
+        var spinStart = 0;
+
+        function canvasToWorld(cx, cy) {
+            return { x: (cx - panX) / zoom, y: (cy - panY) / zoom };
+        }
+
+        function onDown(e) {
+            var rect = canvas.getBoundingClientRect();
+            var cx = e.clientX - rect.left;
+            var cy = e.clientY - rect.top;
+            prevX = e.clientX;
+            prevY = e.clientY;
+
+            var world = canvasToWorld(cx, cy);
+
+            if (e.button === 0) {
+                // Check if clicking on driver gear for manual spin
+                if (state.driverGearId && !isPlaying) {
+                    var driver = state.gears.find(function(g) { return g.id === state.driverGearId; });
+                    if (driver) {
+                        var dist = Math.hypot(world.x - driver.x, world.y - driver.y);
+                        if (dist <= driver.radius + 8) {
+                            dragging = true;
+                            dragMode = 'spin';
+                            spinStart = Math.atan2(world.y - driver.y, world.x - driver.x);
+                            canvas.style.cursor = 'grabbing';
+                            return;
+                        }
+                    }
+                }
+                // Left click on empty space: pan
+                dragging = true;
+                dragMode = 'pan';
+                canvas.style.cursor = 'grabbing';
+            } else if (e.button === 1) {
+                dragging = true;
+                dragMode = 'pan';
+                canvas.style.cursor = 'move';
+            }
+        }
+
+        function onMove(e) {
+            if (!dragging) {
+                // Update cursor on hover
+                var rect = canvas.getBoundingClientRect();
+                var world = canvasToWorld(e.clientX - rect.left, e.clientY - rect.top);
+                if (state.driverGearId && !isPlaying) {
+                    var driver = state.gears.find(function(g) { return g.id === state.driverGearId; });
+                    if (driver) {
+                        var dist = Math.hypot(world.x - driver.x, world.y - driver.y);
+                        canvas.style.cursor = dist <= driver.radius + 8 ? 'grab' : 'default';
+                        return;
+                    }
+                }
+                canvas.style.cursor = 'default';
+                return;
+            }
+
+            if (dragMode === 'pan') {
+                panX += e.clientX - prevX;
+                panY += e.clientY - prevY;
+            } else if (dragMode === 'spin') {
+                var rect = canvas.getBoundingClientRect();
+                var world = canvasToWorld(e.clientX - rect.left, e.clientY - rect.top);
+                var driver = state.gears.find(function(g) { return g.id === state.driverGearId; });
+                if (driver) {
+                    var angle = Math.atan2(world.y - driver.y, world.x - driver.x);
+                    var delta = angle - spinStart;
+                    driver.rotation += delta;
+                    spinStart = angle;
+                    propagateManualRotation(driver);
+                }
+            }
+
+            prevX = e.clientX;
+            prevY = e.clientY;
+        }
+
+        function onUp() {
+            dragging = false;
+            dragMode = null;
+            canvas.style.cursor = 'default';
+        }
+
+        function onScroll(e) {
+            e.preventDefault();
+            var rect = canvas.getBoundingClientRect();
+            var mx = e.clientX - rect.left;
+            var my = e.clientY - rect.top;
+            var factor = e.deltaY > 0 ? 0.9 : 1.1;
+            var newZoom = Math.max(0.25, Math.min(4, zoom * factor));
+            panX = mx - (mx - panX) * (newZoom / zoom);
+            panY = my - (my - panY) * (newZoom / zoom);
+            zoom = newZoom;
+        }
+
+        // Touch support
+        var lastTouchDist = 0;
+        var lastTouchX = 0, lastTouchY = 0;
+
+        function onTouchStart(e) {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                var t = e.touches[0];
+                prevX = t.clientX;
+                prevY = t.clientY;
+                lastTouchX = t.clientX;
+                lastTouchY = t.clientY;
+
+                var rect = canvas.getBoundingClientRect();
+                var world = canvasToWorld(t.clientX - rect.left, t.clientY - rect.top);
+
+                // Check for driver gear spin
+                if (state.driverGearId && !isPlaying) {
+                    var driver = state.gears.find(function(g) { return g.id === state.driverGearId; });
+                    if (driver) {
+                        var dist = Math.hypot(world.x - driver.x, world.y - driver.y);
+                        if (dist <= driver.radius + 15) {
+                            dragging = true;
+                            dragMode = 'spin';
+                            spinStart = Math.atan2(world.y - driver.y, world.x - driver.x);
+                            return;
+                        }
+                    }
+                }
+
+                dragging = true;
+                dragMode = 'pan';
+            } else if (e.touches.length === 2) {
+                // Pinch zoom
+                dragging = false;
+                dragMode = null;
+                var dx = e.touches[0].clientX - e.touches[1].clientX;
+                var dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastTouchDist = Math.hypot(dx, dy);
+                lastTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            }
+        }
+
+        function onTouchMove(e) {
+            e.preventDefault();
+            if (e.touches.length === 1 && dragging) {
+                var t = e.touches[0];
+                if (dragMode === 'pan') {
+                    panX += t.clientX - prevX;
+                    panY += t.clientY - prevY;
+                } else if (dragMode === 'spin') {
+                    var rect = canvas.getBoundingClientRect();
+                    var world = canvasToWorld(t.clientX - rect.left, t.clientY - rect.top);
+                    var driver = state.gears.find(function(g) { return g.id === state.driverGearId; });
+                    if (driver) {
+                        var angle = Math.atan2(world.y - driver.y, world.x - driver.x);
+                        driver.rotation += angle - spinStart;
+                        spinStart = angle;
+                        propagateManualRotation(driver);
+                    }
+                }
+                prevX = t.clientX;
+                prevY = t.clientY;
+            } else if (e.touches.length === 2) {
+                var dx = e.touches[0].clientX - e.touches[1].clientX;
+                var dy = e.touches[0].clientY - e.touches[1].clientY;
+                var dist = Math.hypot(dx, dy);
+                var mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                var my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+                if (lastTouchDist > 0) {
+                    var factor = dist / lastTouchDist;
+                    var newZoom = Math.max(0.25, Math.min(4, zoom * factor));
+                    var rect = canvas.getBoundingClientRect();
+                    var cx = mx - rect.left;
+                    var cy = my - rect.top;
+                    panX = cx - (cx - panX) * (newZoom / zoom);
+                    panY = cy - (cy - panY) * (newZoom / zoom);
+                    zoom = newZoom;
+                }
+                // Also pan
+                panX += mx - lastTouchX;
+                panY += my - lastTouchY;
+
+                lastTouchDist = dist;
+                lastTouchX = mx;
+                lastTouchY = my;
+            }
+        }
+
+        function onTouchEnd(e) {
+            if (e.touches.length === 0) {
+                dragging = false;
+                dragMode = null;
+                lastTouchDist = 0;
+            }
+        }
+
+        // =============================================
+        // Message protocol for project-preview.php
+        // =============================================
+        window.addEventListener('message', function(e) {
+            var msg = e.data;
+            if (!msg || msg.type !== 'LOAD_PREVIEW') return;
+            if (!msg.data) return;
+            initPreview(msg.data);
+            window.parent.postMessage({ type: 'PREVIEW_LOADED' }, window.location.origin);
+        });
+
+        // Signal readiness
+        window.parent.postMessage({ type: 'PREVIEW_READY' }, window.location.origin);
+    })();
+    </script>
+</body>
+</html>
