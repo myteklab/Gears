@@ -189,8 +189,12 @@ function propagateRotation() {
     const driver = state.gears.find(g => g.id === state.driverGearId);
     if (!driver) return;
 
-    // Apply direction to spin speed with base speed multiplier
-    driver.rotationSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
+    // Apply direction and speed multiplier
+    if (state.settings.motor && state.settings.motor.enabled) {
+        driver.rotationSpeed = (state.settings.motor.rpmInput / 60) * state.settings.spinDirection * state.settings.spinSpeed;
+    } else {
+        driver.rotationSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
+    }
 
     // BFS propagation with proper gear ratios AND conflict detection
     const visited = new Set([driver.id]);

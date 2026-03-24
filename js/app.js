@@ -176,16 +176,16 @@ function update(deltaTime) {
             var currentSpeed;
             var visualSpeed;
             if (state.settings.motor && state.settings.motor.enabled) {
-                // Motor mode: motor delivers its set RPM regardless of load.
+                // Motor mode: motor delivers its set RPM, scaled by the speed slider.
                 // Visual rotation is capped to avoid stroboscopic aliasing at
                 // high RPMs (teeth-per-frame aligns with refresh rate, making
                 // gears appear frozen). RPM display shows real motor values.
                 baseSpeed = (state.settings.motor.rpmInput / 60) * state.settings.spinDirection;
-                currentSpeed = baseSpeed;
-                var absSpeed = Math.abs(baseSpeed);
+                currentSpeed = baseSpeed * state.settings.spinSpeed;
+                var absSpeed = Math.abs(currentSpeed);
                 var maxVisualRotPerSec = 8;
                 var visualScale = absSpeed > maxVisualRotPerSec ? maxVisualRotPerSec / absSpeed : 1;
-                visualSpeed = baseSpeed * visualScale;
+                visualSpeed = currentSpeed * visualScale;
             } else {
                 // Free-spin mode: load reduces speed
                 baseSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
@@ -331,17 +331,14 @@ function sendGearsState() {
 }
 
 function updateMotorModeUI() {
-    // Toggle visibility of motor controls vs speed slider
+    // Toggle visibility of motor controls (speed slider stays visible in both modes)
     var motorControls = document.getElementById('motorControls');
-    var speedControl = document.querySelector('.speed-control');
     var toggleBtn = document.getElementById('motorToggleBtn');
     if (state.settings.motor && state.settings.motor.enabled) {
         if (motorControls) motorControls.style.display = 'block';
-        if (speedControl) speedControl.style.display = 'none';
         if (toggleBtn) toggleBtn.textContent = 'Disable Motor Mode';
     } else {
         if (motorControls) motorControls.style.display = 'none';
-        if (speedControl) speedControl.style.display = '';
         if (toggleBtn) toggleBtn.textContent = 'Enable Motor Mode';
     }
 }

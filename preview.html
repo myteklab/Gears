@@ -287,11 +287,11 @@
             var baseSpeed, currentSpeed, visualSpeed;
             if (state.settings.motor && state.settings.motor.enabled) {
                 baseSpeed = (state.settings.motor.rpmInput / 60) * state.settings.spinDirection;
-                currentSpeed = baseSpeed;
-                var absSpeed = Math.abs(baseSpeed);
+                currentSpeed = baseSpeed * state.settings.spinSpeed;
+                var absSpeed = Math.abs(currentSpeed);
                 var maxVisualRotPerSec = 8;
                 var visualScale = absSpeed > maxVisualRotPerSec ? maxVisualRotPerSec / absSpeed : 1;
-                visualSpeed = baseSpeed * visualScale;
+                visualSpeed = currentSpeed * visualScale;
             } else {
                 baseSpeed = state.settings.spinSpeed * state.settings.spinDirection * BASE_ROTATION_SPEED;
                 currentSpeed = baseSpeed * result.multiplier;
