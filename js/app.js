@@ -218,18 +218,18 @@ function update(deltaTime) {
                 // Animate crane: rope winds around drum as gear rotates
                 // Any rotation (regardless of direction) lifts the weight
                 if (output.type === 'crane' && output.payload) {
+                    // Ensure liftedHeight is a valid number
+                    if (!output.payload.liftedHeight || isNaN(output.payload.liftedHeight)) {
+                        output.payload.liftedHeight = 0;
+                    }
                     var deltaRot = Math.abs(gear.rotation - prevRotation);
                     // Ignore large jumps (e.g. first frame after load or direction change)
                     if (deltaRot > 0.5) deltaRot = 0;
                     var drumRadius = 14; // pixels, matches drawCrane drum size
                     output.payload.liftedHeight += deltaRot * drumRadius;
-                    var maxLift = output.payload.ropeLength - 30;
+                    var ropeLen = output.payload.ropeLength || 150;
+                    var maxLift = ropeLen - 30;
                     output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));
-                    // DEBUG: log every 60 frames
-                    if (!window._craneDebugCount) window._craneDebugCount = 0;
-                    if (++window._craneDebugCount % 60 === 0) {
-                        console.log('[CRANE]', 'gearRot:', gear.rotation.toFixed(4), 'prevRot:', prevRotation.toFixed(4), 'delta:', deltaRot.toFixed(6), 'lifted:', output.payload.liftedHeight.toFixed(2), 'attached:', output.attachedToGear);
-                    }
                 }
 
                 // Animate generator: power output = torque * angular velocity
