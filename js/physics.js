@@ -389,6 +389,14 @@ function synchronizeGearRotations(driver) {
                 mate.rotation = current.rotation;
                 mate.rotationSpeed = current.rotationSpeed;
 
+                // DEBUG: verify shaft sync
+                if (!window._shaftDebugCount) window._shaftDebugCount = 0;
+                if (++window._shaftDebugCount % 120 === 0) {
+                    console.log('[SHAFT]', current.teethCount + 'T rot=' + current.rotation.toFixed(4),
+                        mate.teethCount + 'T rot=' + mate.rotation.toFixed(4),
+                        'match=' + (current.rotation === mate.rotation));
+                }
+
                 visited.add(mate.id);
                 queue.push({ gear: mate, speedMultiplier: speedMultiplier });
             }
