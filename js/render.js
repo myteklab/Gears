@@ -242,6 +242,7 @@ function drawGear(gear) {
 
     // Draw shaft indicator for compound gears
     if (gear.shaftId) {
+        // Teal dashed ring around center
         ctx.strokeStyle = '#00bcd4';
         ctx.lineWidth = 2;
         ctx.setLineDash([3, 3]);
@@ -249,6 +250,22 @@ function drawGear(gear) {
         ctx.arc(0, 0, 12, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
+
+        // Radial reference line from center to outer edge
+        // This makes it visually obvious that compound gears rotate together
+        var outerR = gear.radius + state.settings.toothDepth;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -outerR);
+        ctx.strokeStyle = 'rgba(0, 188, 212, 0.6)';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Small dot at the end of the reference line
+        ctx.beginPath();
+        ctx.arc(0, -outerR + 3, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#00bcd4';
+        ctx.fill();
     }
 
     // Draw attached image (rotates with gear)
