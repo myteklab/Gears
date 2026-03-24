@@ -152,6 +152,20 @@
                 <button class="property-btn" id="outputShaftBtn" onclick="setOutputShaft()" style="background:#1abc9c;">
                     Set Output Shaft
                 </button>
+                <div id="compoundGearSection">
+                    <button class="property-btn" id="compoundBtn" onclick="showCompoundGearControls()" style="background:#00bcd4;">
+                        Add Gear to Shaft
+                    </button>
+                    <div id="compoundControls" style="display:none; margin-top:6px;">
+                        <div class="property-row">
+                            <div class="property-label">Teeth: <span id="compoundTeethValue">12</span></div>
+                            <input type="range" id="compoundTeethSlider" min="8" max="48" step="4" value="12">
+                        </div>
+                        <button class="property-btn" onclick="confirmAddCompoundGear()" style="background:#00bcd4;">
+                            Confirm
+                        </button>
+                    </div>
+                </div>
                 <button class="property-btn btn-delete" onclick="deleteSelectedGear()">
                     Delete Gear
                 </button>
@@ -217,6 +231,14 @@
                     <div class="palette-output" draggable="true" data-output="wheel">
                         <span class="palette-output-icon">&#9782;</span>
                         <span class="palette-output-label">Wheel</span>
+                    </div>
+                    <div class="palette-output" draggable="true" data-output="crane">
+                        <span class="palette-output-icon">&#9875;</span>
+                        <span class="palette-output-label">Crane</span>
+                    </div>
+                    <div class="palette-output" draggable="true" data-output="generator">
+                        <span class="palette-output-icon">&#9889;</span>
+                        <span class="palette-output-label">Generator</span>
                     </div>
                 </div>
             </div>

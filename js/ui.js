@@ -66,6 +66,11 @@ function setupControlEvents() {
         document.getElementById('imageScaleValue').textContent = scale.toFixed(1);
         updateAttachedImageProperty('scale', scale);
     });
+
+    // Compound gear teeth slider
+    document.getElementById('compoundTeethSlider').addEventListener('input', e => {
+        document.getElementById('compoundTeethValue').textContent = e.target.value;
+    });
 }
 
 // ============================================
@@ -127,6 +132,18 @@ function updateUI() {
             } else {
                 imageUrlInput.value = '';
                 imageControls.style.display = 'none';
+            }
+
+            // Update compound gear button
+            var compoundSection = document.getElementById('compoundGearSection');
+            if (compoundSection) {
+                var shaftMateCount = gear.shaftId
+                    ? state.gears.filter(g => g.shaftId === gear.shaftId).length - 1
+                    : 0;
+                // Limit 3 gears per shaft
+                compoundSection.style.display = shaftMateCount >= 2 ? 'none' : '';
+                // Reset controls when switching gears
+                document.getElementById('compoundControls').style.display = 'none';
             }
         }
     } else {
@@ -340,6 +357,35 @@ function setOutputShaft() {
         }
         window.isDirty = true;
     }
+}
+
+// ============================================
+// Compound Gear Controls
+// ============================================
+function showCompoundGearControls() {
+    var controls = document.getElementById('compoundControls');
+    if (controls.style.display === 'none') {
+        controls.style.display = 'block';
+        // Default to a different size than the selected gear
+        var selectedGear = state.gears.find(g => g.id === state.selectedGearId);
+        var defaultTeeth = selectedGear && selectedGear.teethCount >= 24 ? 8 : 24;
+        document.getElementById('compoundTeethSlider').value = defaultTeeth;
+        document.getElementById('compoundTeethValue').textContent = defaultTeeth;
+    } else {
+        controls.style.display = 'none';
+    }
+}
+
+function confirmAddCompoundGear() {
+    if (!state.selectedGearId) return;
+    var teeth = parseInt(document.getElementById('compoundTeethSlider').value);
+    var newGear = createCompoundGear(state.selectedGearId, teeth);
+    if (newGear) {
+        state.selectedGearId = newGear.id;
+        showToast('Compound gear added to shaft', 'success');
+    }
+    document.getElementById('compoundControls').style.display = 'none';
+    updateUI();
 }
 
 function setupMotorControls() {

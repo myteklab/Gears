@@ -84,13 +84,23 @@ function alignTeethForMeshing(gear2, gear1) {
     gear2.rotation = normalizeAngle(gear2.rotation - currentGapOffset);
 }
 
+// Get all gears on the same shaft as the given gear (excluding itself)
+function getShaftMates(gear) {
+    if (!gear.shaftId) return [];
+    return state.gears.filter(g => g.shaftId === gear.shaftId && g.id !== gear.id);
+}
+
 function updateAllConnections() {
     // Clear all connections
     state.gears.forEach(g => g.meshingWith = []);
 
-    // Check all pairs
+    // Check all pairs (skip co-axial gears on same shaft)
     for (let i = 0; i < state.gears.length; i++) {
         for (let j = i + 1; j < state.gears.length; j++) {
+            // Co-axial gears don't mesh via teeth
+            if (state.gears[i].shaftId && state.gears[i].shaftId === state.gears[j].shaftId) {
+                continue;
+            }
             if (checkMeshing(state.gears[i], state.gears[j])) {
                 state.gears[i].meshingWith.push(state.gears[j].id);
                 state.gears[j].meshingWith.push(state.gears[i].id);
@@ -123,15 +133,24 @@ function calculatePhaseOffsets() {
     while (queue.length > 0) {
         const current = queue.shift();
 
+        // Traverse meshing connections (external teeth contact)
         for (const connectedId of current.meshingWith) {
             if (!visited.has(connectedId)) {
                 const connected = state.gears.find(g => g.id === connectedId);
                 if (connected) {
-                    // Calculate phase offset for proper meshing
                     connected.phaseOffset = calculateMeshPhaseOffset(current, connected);
                     visited.add(connectedId);
                     queue.push(connected);
                 }
+            }
+        }
+
+        // Traverse shaft connections (co-axial, same rotation)
+        for (const mate of getShaftMates(current)) {
+            if (!visited.has(mate.id)) {
+                mate.phaseOffset = current.phaseOffset;
+                visited.add(mate.id);
+                queue.push(mate);
             }
         }
     }
@@ -205,34 +224,51 @@ function propagateRotation() {
     while (queue.length > 0) {
         const current = queue.shift();
 
+        // Traverse meshing connections (external teeth, opposite direction, ratio applied)
         for (const connectedId of current.meshingWith) {
             const connected = state.gears.find(g => g.id === connectedId);
             if (!connected) continue;
 
-            // Calculate what this gear's speed SHOULD be from this connection
             const ratio = current.teethCount / connected.teethCount;
             const expectedSpeed = -current.rotationSpeed * ratio;
 
             if (visited.has(connectedId)) {
-                // Already visited - check for kinematic conflict
                 const existingSpeed = gearSpeeds.get(connectedId);
-
-                // Allow small tolerance for floating point errors
                 const speedDiff = Math.abs(existingSpeed - expectedSpeed);
                 const tolerance = Math.abs(existingSpeed) * 0.01 + 0.0001;
 
                 if (speedDiff > tolerance) {
-                    // CONFLICT DETECTED - gears would need to spin in incompatible ways
                     systemLocked = true;
                     lockedGears.add(current.id);
                     lockedGears.add(connectedId);
                 }
             } else {
-                // Not visited yet - set speed and continue propagation
                 connected.rotationSpeed = expectedSpeed;
                 gearSpeeds.set(connectedId, expectedSpeed);
                 visited.add(connectedId);
                 queue.push(connected);
+            }
+        }
+
+        // Traverse shaft connections (co-axial, same direction, same speed)
+        for (const mate of getShaftMates(current)) {
+            const expectedSpeed = current.rotationSpeed;
+
+            if (visited.has(mate.id)) {
+                const existingSpeed = gearSpeeds.get(mate.id);
+                const speedDiff = Math.abs(existingSpeed - expectedSpeed);
+                const tolerance = Math.abs(existingSpeed) * 0.01 + 0.0001;
+
+                if (speedDiff > tolerance) {
+                    systemLocked = true;
+                    lockedGears.add(current.id);
+                    lockedGears.add(mate.id);
+                }
+            } else {
+                mate.rotationSpeed = expectedSpeed;
+                gearSpeeds.set(mate.id, expectedSpeed);
+                visited.add(mate.id);
+                queue.push(mate);
             }
         }
     }
@@ -256,7 +292,7 @@ function calculateSystemLoad() {
     const driver = state.gears.find(g => g.id === state.driverGearId);
     if (!driver) return { multiplier: 1, percentage: 0, locked: false };
 
-    // Find all gears connected to driver
+    // Find all gears connected to driver (via meshing and shafts)
     const connectedGears = [];
     const visited = new Set([driver.id]);
     const queue = [driver];
@@ -265,6 +301,7 @@ function calculateSystemLoad() {
         const current = queue.shift();
         connectedGears.push(current);
 
+        // Meshing connections
         for (const connectedId of current.meshingWith) {
             if (!visited.has(connectedId)) {
                 const connected = state.gears.find(g => g.id === connectedId);
@@ -272,6 +309,14 @@ function calculateSystemLoad() {
                     visited.add(connectedId);
                     queue.push(connected);
                 }
+            }
+        }
+
+        // Shaft connections
+        for (const mate of getShaftMates(current)) {
+            if (!visited.has(mate.id)) {
+                visited.add(mate.id);
+                queue.push(mate);
             }
         }
     }
@@ -290,7 +335,13 @@ function calculateSystemLoad() {
     // Add load from outputs (they add extra resistance)
     state.outputs.forEach(output => {
         if (output.attachedToGear && visited.has(output.attachedToGear)) {
-            totalLoad += 20; // Each output adds fixed load
+            if (output.type === 'crane' && output.payload) {
+                totalLoad += output.payload.weightKg * 10;
+            } else if (output.type === 'generator') {
+                totalLoad += 15;
+            } else {
+                totalLoad += 20;
+            }
         }
     });
 
@@ -315,30 +366,31 @@ function synchronizeGearRotations(driver) {
     while (queue.length > 0) {
         const { gear: current, speedMultiplier } = queue.shift();
 
+        // Traverse meshing connections (external teeth contact)
         for (const connectedId of current.meshingWith) {
             if (!visited.has(connectedId)) {
                 const connected = state.gears.find(g => g.id === connectedId);
                 if (connected) {
-                    // Gear ratio: how much faster/slower connected spins relative to current
                     const ratio = current.teethCount / connected.teethCount;
-
-                    // Calculate connected gear's rotation:
-                    // - Opposite direction (negative)
-                    // - Scaled by ratio
-                    // - Plus phase offset to align teeth with gaps
                     connected.rotation = -(current.rotation * ratio) + connected.phaseOffset;
 
-                    // Calculate rotation speed for RPM display
-                    // Speed multiplier tracks cumulative ratio from driver
                     const newSpeedMultiplier = -speedMultiplier * ratio;
                     connected.rotationSpeed = driver.rotationSpeed * newSpeedMultiplier;
 
                     visited.add(connectedId);
-                    queue.push({
-                        gear: connected,
-                        speedMultiplier: newSpeedMultiplier
-                    });
+                    queue.push({ gear: connected, speedMultiplier: newSpeedMultiplier });
                 }
+            }
+        }
+
+        // Traverse shaft connections (co-axial, same rotation and speed)
+        for (const mate of getShaftMates(current)) {
+            if (!visited.has(mate.id)) {
+                mate.rotation = current.rotation;
+                mate.rotationSpeed = current.rotationSpeed;
+
+                visited.add(mate.id);
+                queue.push({ gear: mate, speedMultiplier: speedMultiplier });
             }
         }
     }
@@ -371,6 +423,7 @@ function calculateTotalRatio(driverGear, targetGear) {
     while (queue.length > 0) {
         var current = queue.shift();
 
+        // Traverse meshing connections (ratio applied, direction reversal)
         for (var i = 0; i < current.gear.meshingWith.length; i++) {
             var connectedId = current.gear.meshingWith[i];
             if (visited.has(connectedId)) continue;
@@ -386,7 +439,20 @@ function calculateTotalRatio(driverGear, targetGear) {
             }
 
             visited.add(connectedId);
-            queue.push({ gear: connected, ratio: -totalRatio }); // negative for direction reversal
+            queue.push({ gear: connected, ratio: -totalRatio });
+        }
+
+        // Traverse shaft connections (ratio 1, no direction change)
+        var mates = getShaftMates(current.gear);
+        for (var j = 0; j < mates.length; j++) {
+            if (visited.has(mates[j].id)) continue;
+
+            if (mates[j].id === targetGear.id) {
+                return Math.abs(current.ratio);
+            }
+
+            visited.add(mates[j].id);
+            queue.push({ gear: mates[j], ratio: current.ratio });
         }
     }
 

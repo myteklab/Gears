@@ -109,7 +109,18 @@ function onMouseDown(e) {
             dragOffsetY = mouseY - hitOutput.y;
             canvas.style.cursor = 'grabbing';
         } else if (hitGear) {
-            state.selectedGearId = hitGear.id;
+            // Click-cycle through compound gears on the same shaft
+            var selectedGear = hitGear;
+            if (hitGear.shaftId && state.selectedGearId) {
+                var currentSelected = state.gears.find(g => g.id === state.selectedGearId);
+                if (currentSelected && currentSelected.shaftId === hitGear.shaftId) {
+                    // Currently selected gear is on the same shaft; cycle to next
+                    var shaftGears = state.gears.filter(g => g.shaftId === hitGear.shaftId);
+                    var currentIdx = shaftGears.findIndex(g => g.id === state.selectedGearId);
+                    selectedGear = shaftGears[(currentIdx + 1) % shaftGears.length];
+                }
+            }
+            state.selectedGearId = selectedGear.id;
             state.selectedOutputId = null;
             updateUI();
 
@@ -170,10 +181,31 @@ function onMouseMove(e) {
             dragTarget.item.x = newX;
             dragTarget.item.y = newY;
 
-            // Check for snap-to-mesh
+            // Move shaft-mates together
+            if (dragTarget.item.shaftId) {
+                state.gears.forEach(g => {
+                    if (g.shaftId === dragTarget.item.shaftId && g.id !== dragTarget.item.id) {
+                        g.x = newX;
+                        g.y = newY;
+                    }
+                });
+            }
+
+            // Check for snap-to-mesh (skip shaft-mates)
             for (const other of state.gears) {
-                if (other.id !== dragTarget.item.id && canMesh(dragTarget.item, other)) {
+                if (other.id !== dragTarget.item.id &&
+                    !(other.shaftId && other.shaftId === dragTarget.item.shaftId) &&
+                    canMesh(dragTarget.item, other)) {
                     snapToMesh(dragTarget.item, other);
+                    // Also update shaft-mates to the snapped position
+                    if (dragTarget.item.shaftId) {
+                        state.gears.forEach(g => {
+                            if (g.shaftId === dragTarget.item.shaftId && g.id !== dragTarget.item.id) {
+                                g.x = dragTarget.item.x;
+                                g.y = dragTarget.item.y;
+                            }
+                        });
+                    }
                     break;
                 }
             }

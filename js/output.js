@@ -13,8 +13,16 @@ function createOutput(type, x, y) {
         y: y,
         attachedToGear: null,
         rotation: 0,
-        color: type === 'fan' ? '#3498db' : type === 'clock' ? '#2c3e50' : type === 'wheel' ? '#333333' : '#95a5a6'
+        color: type === 'fan' ? '#3498db' : type === 'clock' ? '#2c3e50' : type === 'wheel' ? '#333333' : type === 'crane' ? '#e67e22' : type === 'generator' ? '#f1c40f' : '#95a5a6',
+        payload: null
     };
+
+    // Initialize payload data for special output types
+    if (type === 'crane') {
+        output.payload = { weightKg: 2.0, ropeLength: 100, liftedHeight: 0 };
+    } else if (type === 'generator') {
+        output.payload = { maxWatts: 10, brightness: 0 };
+    }
 
     // Try to attach to nearest gear
     let nearestGear = null;
@@ -201,4 +209,148 @@ function drawWheel(output) {
     ctx.arc(0, 0, 4, 0, Math.PI * 2);
     ctx.fillStyle = '#555';
     ctx.fill();
+}
+
+function drawCrane(output) {
+    var p = output.payload || { weightKg: 2, ropeLength: 100, liftedHeight: 0 };
+    var drumR = 14;
+    var ropeLen = p.ropeLength || 100;
+    var lifted = p.liftedHeight || 0;
+    var weightY = ropeLen - lifted;
+
+    // Winch drum (rotates with gear)
+    ctx.beginPath();
+    ctx.arc(0, 0, drumR, 0, Math.PI * 2);
+    var drumGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, drumR);
+    drumGrad.addColorStop(0, '#aaa');
+    drumGrad.addColorStop(1, '#666');
+    ctx.fillStyle = drumGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Axle
+    ctx.beginPath();
+    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#444';
+    ctx.fill();
+
+    // Rope and weight must NOT rotate - counter-rotate
+    ctx.rotate(-output.rotation);
+
+    // Support arm
+    ctx.beginPath();
+    ctx.moveTo(0, drumR);
+    ctx.lineTo(0, drumR + 8);
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Rope
+    ctx.beginPath();
+    ctx.moveTo(0, drumR + 8);
+    ctx.lineTo(0, drumR + 8 + weightY);
+    ctx.strokeStyle = '#bdc3c7';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Weight block
+    var blockW = 28;
+    var blockH = 22;
+    var blockY = drumR + 8 + weightY;
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath();
+    ctx.roundRect(-blockW / 2, blockY, blockW, blockH, 3);
+    ctx.fill();
+    ctx.strokeStyle = '#922b21';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Weight label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.weightKg.toFixed(1) + 'kg', 0, blockY + blockH / 2);
+
+    // Height indicator (small text)
+    if (lifted > 0) {
+        var heightM = (lifted / 20).toFixed(1); // scale: 20px = 1m
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = '9px sans-serif';
+        ctx.fillText(heightM + 'm', 18, blockY + blockH / 2);
+    }
+}
+
+function drawGenerator(output) {
+    var p = output.payload || { maxWatts: 10, brightness: 0 };
+    var brightness = p.brightness || 0;
+
+    // Generator housing (does NOT rotate - counter-rotate)
+    ctx.rotate(-output.rotation);
+
+    // Housing body
+    ctx.fillStyle = '#444';
+    ctx.beginPath();
+    ctx.roundRect(-22, -14, 44, 28, 4);
+    ctx.fill();
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Coil lines on housing
+    ctx.strokeStyle = '#e67e22';
+    ctx.lineWidth = 1;
+    for (var i = -12; i <= 12; i += 6) {
+        ctx.beginPath();
+        ctx.moveTo(i, -8);
+        ctx.lineTo(i, 8);
+        ctx.stroke();
+    }
+
+    // Lightbulb
+    var bulbY = -32;
+    var bulbR = 12;
+
+    // Glow effect (when generating power)
+    if (brightness > 0.05) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(255, 220, 50, ' + Math.min(brightness, 1) + ')';
+        ctx.shadowBlur = 15 + brightness * 25;
+        ctx.beginPath();
+        ctx.arc(0, bulbY, bulbR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 220, 50, ' + Math.min(brightness * 0.9, 0.95) + ')';
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Bulb outline
+    ctx.beginPath();
+    ctx.arc(0, bulbY, bulbR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 220, 50, ' + (0.1 + brightness * 0.8) + ')';
+    ctx.fill();
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Bulb base
+    ctx.fillStyle = '#888';
+    ctx.fillRect(-5, bulbY + bulbR - 2, 10, 6);
+
+    // Wire from bulb to housing
+    ctx.beginPath();
+    ctx.moveTo(0, bulbY + bulbR + 4);
+    ctx.lineTo(0, -14);
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Watts display
+    var watts = brightness * (p.maxWatts || 10);
+    ctx.fillStyle = brightness > 0.3 ? '#fff' : '#aaa';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(watts.toFixed(1) + 'W', 0, 2);
 }

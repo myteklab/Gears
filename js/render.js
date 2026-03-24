@@ -22,8 +22,17 @@ function render() {
     // Draw meshing highlights
     drawMeshingHighlights();
 
-    // Draw gears
-    state.gears.forEach(gear => {
+    // Draw gears (sort so larger compound gears draw behind smaller ones)
+    var sortedGears = state.gears.slice().sort(function(a, b) {
+        // Non-shaft gears keep their original order
+        if (!a.shaftId && !b.shaftId) return 0;
+        // Shaft gears: larger radius draws first (behind)
+        if (a.shaftId && b.shaftId && a.shaftId === b.shaftId) {
+            return b.radius - a.radius;
+        }
+        return 0;
+    });
+    sortedGears.forEach(gear => {
         drawGear(gear);
     });
 
@@ -228,8 +237,19 @@ function drawGear(gear) {
     // Draw center axle
     ctx.beginPath();
     ctx.arc(0, 0, 4, 0, Math.PI * 2);
-    ctx.fillStyle = '#555';
+    ctx.fillStyle = gear.shaftId ? '#00bcd4' : '#555';
     ctx.fill();
+
+    // Draw shaft indicator for compound gears
+    if (gear.shaftId) {
+        ctx.strokeStyle = '#00bcd4';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
 
     // Draw attached image (rotates with gear)
     if (gear.attachedImage && gear.attachedImage.imageObj) {
@@ -273,13 +293,6 @@ function drawGear(gear) {
 
         // Background pill for RPM
         let text = direction + ' ' + rpm;
-        // Show torque in motor mode
-        if (state.settings.motor && state.settings.motor.enabled && typeof calculateMotorOutput === 'function') {
-            var motorOut = calculateMotorOutput();
-            if (motorOut && state.outputShaftGearId === gear.id) {
-                text += ' / ' + motorOut.outputTorque.toFixed(2) + ' Nm';
-            }
-        }
         ctx.font = 'bold 11px sans-serif';
         const textWidth = ctx.measureText(text).width;
         const pillWidth = textWidth + 12;
@@ -302,6 +315,27 @@ function drawGear(gear) {
         ctx.font = '9px sans-serif';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.fillText('RPM', 0, pillY + 12);
+
+        // Draw torque/power pill for output shaft gear
+        if (state.outputShaftGearId === gear.id && state.settings.motor && state.settings.motor.enabled && typeof calculateMotorOutput === 'function') {
+            var motorOut = calculateMotorOutput();
+            if (motorOut) {
+                var tpText = motorOut.outputTorque.toFixed(2) + ' Nm | ' + motorOut.power.toFixed(1) + ' W';
+                ctx.font = 'bold 10px sans-serif';
+                var tpWidth = ctx.measureText(tpText).width + 12;
+                var tpY = pillY + 28;
+
+                ctx.beginPath();
+                ctx.roundRect(-tpWidth/2, tpY - 8, tpWidth, 16, 8);
+                ctx.fillStyle = 'rgba(26, 188, 156, 0.8)';
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(tpText, 0, tpY);
+            }
+        }
 
         ctx.restore();
     }
@@ -384,6 +418,8 @@ function drawOutput(output) {
         else if (output.type === 'clock') selectionRadius = 50;
         else if (output.type === 'platform') selectionRadius = 45;
         else if (output.type === 'wheel') selectionRadius = 70;
+        else if (output.type === 'crane') selectionRadius = 55;
+        else if (output.type === 'generator') selectionRadius = 50;
         ctx.arc(0, 0, selectionRadius, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
@@ -403,6 +439,12 @@ function drawOutput(output) {
             break;
         case 'wheel':
             drawWheel(output);
+            break;
+        case 'crane':
+            drawCrane(output);
+            break;
+        case 'generator':
+            drawGenerator(output);
             break;
     }
 

@@ -205,14 +205,31 @@ function update(deltaTime) {
         }
     }
 
-    // Update output rotations based on attached gear
+    // Update output rotations and payloads based on attached gear
     state.outputs.forEach(output => {
         if (output.attachedToGear) {
             const gear = state.gears.find(g => g.id === output.attachedToGear);
             if (gear) {
+                var prevRotation = output.rotation;
                 output.rotation = gear.rotation;
                 output.x = gear.x;
                 output.y = gear.y;
+
+                // Animate crane: lift weight based on rotation change
+                if (output.type === 'crane' && output.payload) {
+                    var deltaRot = gear.rotation - prevRotation;
+                    var drumRadius = 14;
+                    output.payload.liftedHeight += deltaRot * drumRadius * 0.3;
+                    output.payload.liftedHeight = Math.max(0, Math.min(output.payload.ropeLength - 10, output.payload.liftedHeight));
+                }
+
+                // Animate generator: brightness from RPM
+                if (output.type === 'generator' && output.payload) {
+                    var rpm = Math.abs(gear.rotationSpeed * 60);
+                    var maxWatts = output.payload.maxWatts || 10;
+                    // Brightness scales with RPM (normalized to a reasonable range)
+                    output.payload.brightness = Math.min(1, rpm / (maxWatts * 8));
+                }
             }
         }
     });

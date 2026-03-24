@@ -7,7 +7,7 @@
 // ============================================
 function serializeProject() {
     return {
-        version: '1.1',
+        version: '1.2',
         settings: state.settings,
         gears: state.gears.map(g => ({
             id: g.id,
@@ -17,7 +17,7 @@ function serializeProject() {
             color: g.color,
             rotation: g.rotation,
             phaseOffset: g.phaseOffset,
-            // Save attached image data (without imageObj - that gets reloaded)
+            shaftId: g.shaftId || null,
             attachedImage: g.attachedImage ? {
                 url: g.attachedImage.url,
                 offsetX: g.attachedImage.offsetX,
@@ -31,7 +31,8 @@ function serializeProject() {
             x: o.x,
             y: o.y,
             attachedToGear: o.attachedToGear,
-            color: o.color
+            color: o.color,
+            payload: o.payload || null
         })),
         driverGearId: state.driverGearId,
         outputShaftGearId: state.outputShaftGearId || null
@@ -55,6 +56,7 @@ function loadProjectData(data) {
             rotationSpeed: 0,
             meshingWith: [],
             phaseOffset: g.phaseOffset || 0,
+            shaftId: g.shaftId || null,
             attachedImage: g.attachedImage || null
         }));
 

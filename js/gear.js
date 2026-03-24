@@ -18,6 +18,8 @@ function createGear(x, y, teethCount, color) {
         meshingWith: [],
         // Phase offset relative to parent gear in the chain (for proper tooth interlocking)
         phaseOffset: 0,
+        // Co-axial shaft: gears sharing a shaftId rotate together at the same speed
+        shaftId: null,
         // Attached image (optional) - rotates with gear
         attachedImage: null // { url, offsetX, offsetY, scale, imageObj }
     };
@@ -25,6 +27,23 @@ function createGear(x, y, teethCount, color) {
     state.gears.push(gear);
     window.isDirty = true;
     updateAllConnections();
+    return gear;
+}
+
+// Create a compound gear on the same shaft as an existing gear
+function createCompoundGear(existingGearId, teethCount, color) {
+    const existing = state.gears.find(g => g.id === existingGearId);
+    if (!existing) return null;
+
+    // Generate a shared shaft ID if the existing gear doesn't have one
+    if (!existing.shaftId) {
+        existing.shaftId = 'shaft_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    const gear = createGear(existing.x, existing.y, teethCount, color);
+    gear.shaftId = existing.shaftId;
+    gear.rotation = existing.rotation; // same angular position
+
     return gear;
 }
 
@@ -36,6 +55,17 @@ function calculateRadius(teethCount) {
 function deleteGear(gearId) {
     const index = state.gears.findIndex(g => g.id === gearId);
     if (index !== -1) {
+        const gear = state.gears[index];
+
+        // If this gear was on a shaft, clean up the shaft
+        if (gear.shaftId) {
+            const shaftMates = state.gears.filter(g => g.shaftId === gear.shaftId && g.id !== gearId);
+            if (shaftMates.length === 1) {
+                // Only one gear left on shaft, clear its shaftId
+                shaftMates[0].shaftId = null;
+            }
+        }
+
         state.gears.splice(index, 1);
 
         // Remove any outputs attached to this gear

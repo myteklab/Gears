@@ -58,6 +58,12 @@ function hitTestOutput(x, y) {
             case 'wheel':
                 hitRadius = 65;
                 break;
+            case 'crane':
+                hitRadius = 50;
+                break;
+            case 'generator':
+                hitRadius = 45;
+                break;
         }
 
         if (dist <= hitRadius) {

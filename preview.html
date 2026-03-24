@@ -302,14 +302,25 @@
             driver.rotation += visualSpeed * deltaTime * Math.PI * 2;
             synchronizeGearRotations(driver);
 
-            // Update outputs
+            // Update outputs and payloads
             state.outputs.forEach(function(output) {
                 if (output.attachedToGear) {
                     var gear = state.gears.find(function(g) { return g.id === output.attachedToGear; });
                     if (gear) {
+                        var prevRotation = output.rotation;
                         output.rotation = gear.rotation;
                         output.x = gear.x;
                         output.y = gear.y;
+
+                        if (output.type === 'crane' && output.payload) {
+                            var deltaRot = gear.rotation - prevRotation;
+                            output.payload.liftedHeight += deltaRot * 14 * 0.3;
+                            output.payload.liftedHeight = Math.max(0, Math.min(output.payload.ropeLength - 10, output.payload.liftedHeight));
+                        }
+                        if (output.type === 'generator' && output.payload) {
+                            var rpm = Math.abs(gear.rotationSpeed * 60);
+                            output.payload.brightness = Math.min(1, rpm / ((output.payload.maxWatts || 10) * 8));
+                        }
                     }
                 }
             });
