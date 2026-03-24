@@ -76,46 +76,6 @@ function setupControlEvents() {
     }
 
     // Crane weight slider
-    var craneWeightSlider = document.getElementById('craneWeightSlider');
-    if (craneWeightSlider) {
-        craneWeightSlider.addEventListener('input', e => {
-            var val = parseFloat(e.target.value);
-            document.getElementById('craneWeightValue').textContent = val.toFixed(1);
-            var output = state.outputs.find(o => o.id === state.selectedOutputId);
-            if (output && output.payload) {
-                output.payload.weightKg = val;
-                window.isDirty = true;
-            }
-        });
-    }
-
-    // Crane rope length slider
-    var craneRopeSlider = document.getElementById('craneRopeSlider');
-    if (craneRopeSlider) {
-        craneRopeSlider.addEventListener('input', e => {
-            var val = parseInt(e.target.value);
-            document.getElementById('craneRopeValue').textContent = val;
-            var output = state.outputs.find(o => o.id === state.selectedOutputId);
-            if (output && output.payload) {
-                output.payload.ropeLength = val;
-                window.isDirty = true;
-            }
-        });
-    }
-
-    // Generator max watts slider
-    var genWattsSlider = document.getElementById('genMaxWattsSlider');
-    if (genWattsSlider) {
-        genWattsSlider.addEventListener('input', e => {
-            var val = parseInt(e.target.value);
-            document.getElementById('genMaxWattsValue').textContent = val;
-            var output = state.outputs.find(o => o.id === state.selectedOutputId);
-            if (output && output.payload) {
-                output.payload.maxWatts = val;
-                window.isDirty = true;
-            }
-        });
-    }
 }
 
 // ============================================
@@ -472,6 +432,46 @@ function confirmAddCompoundGear() {
     }
     document.getElementById('compoundControls').style.display = 'none';
     updateUI();
+}
+
+// ============================================
+// Payload Controls (called via inline oninput)
+// ============================================
+function updateCraneWeight(val) {
+    val = parseFloat(val);
+    var el = document.getElementById('craneWeightValue');
+    if (el) el.textContent = val.toFixed(1);
+    var output = state.outputs.find(function(o) { return o.id === state.selectedOutputId; });
+    if (output && output.payload) {
+        output.payload.weightKg = val;
+        window.isDirty = true;
+    }
+}
+
+function updateCraneRope(val) {
+    val = parseInt(val);
+    var el = document.getElementById('craneRopeValue');
+    if (el) el.textContent = val;
+    var output = state.outputs.find(function(o) { return o.id === state.selectedOutputId; });
+    if (output && output.payload) {
+        output.payload.ropeLength = val;
+        // Reset lift height if rope shortened below current lift
+        if (output.payload.liftedHeight > val - 30) {
+            output.payload.liftedHeight = Math.max(0, val - 30);
+        }
+        window.isDirty = true;
+    }
+}
+
+function updateGenMaxWatts(val) {
+    val = parseInt(val);
+    var el = document.getElementById('genMaxWattsValue');
+    if (el) el.textContent = val;
+    var output = state.outputs.find(function(o) { return o.id === state.selectedOutputId; });
+    if (output && output.payload) {
+        output.payload.maxWatts = val;
+        window.isDirty = true;
+    }
 }
 
 function setupMotorControls() {

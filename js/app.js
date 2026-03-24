@@ -216,11 +216,12 @@ function update(deltaTime) {
                 output.y = gear.y;
 
                 // Animate crane: rope winds around drum as gear rotates
-                // deltaAngle (radians) * drumRadius (px) = rope wound (px)
+                // Any rotation (regardless of direction) lifts the weight
                 if (output.type === 'crane' && output.payload) {
-                    var deltaRot = gear.rotation - prevRotation;
+                    var deltaRot = Math.abs(gear.rotation - prevRotation);
+                    // Ignore large jumps (e.g. first frame after load or direction change)
+                    if (deltaRot > 0.5) deltaRot = 0;
                     var drumRadius = 14; // pixels, matches drawCrane drum size
-                    // Positive rotation (clockwise) lifts the weight
                     output.payload.liftedHeight += deltaRot * drumRadius;
                     var maxLift = output.payload.ropeLength - 30;
                     output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));

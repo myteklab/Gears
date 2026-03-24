@@ -313,7 +313,8 @@
                         output.y = gear.y;
 
                         if (output.type === 'crane' && output.payload) {
-                            var deltaRot = gear.rotation - prevRotation;
+                            var deltaRot = Math.abs(gear.rotation - prevRotation);
+                            if (deltaRot > 0.5) deltaRot = 0;
                             output.payload.liftedHeight += deltaRot * 14;
                             var maxLift = output.payload.ropeLength - 30;
                             output.payload.liftedHeight = Math.max(0, Math.min(maxLift, output.payload.liftedHeight));
