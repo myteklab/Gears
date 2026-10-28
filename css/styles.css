@@ -671,3 +671,8 @@ body {
     border-radius: 4px;
     color: #a855f7;
 }
+
+/* A finger on the board moves gears and the two-finger pinch zooms the board,
+   not the page. The palette tiles still let an up or down swipe scroll the panel. */
+#gearCanvas { touch-action: none; }
+.palette-gear, .palette-output { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

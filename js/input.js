@@ -6,10 +6,12 @@
 // Event Setup
 // ============================================
 function setupCanvasEvents() {
-    canvas.addEventListener('mousedown', onMouseDown);
-    canvas.addEventListener('mousemove', onMouseMove);
-    canvas.addEventListener('mouseup', onMouseUp);
-    canvas.addEventListener('mouseleave', onMouseUp);
+    // Pointer events, so a finger on an iPad drives the same handlers as the
+    // mouse. Safari sends no mouse events for a finger drag.
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('wheel', onWheel);
 
     // Prevent context menu
@@ -27,21 +29,58 @@ function setupCanvasEvents() {
 function setupPaletteEvents() {
     // Gear palette
     document.querySelectorAll('.palette-gear').forEach(el => {
+        const data = { type: 'gear', teeth: parseInt(el.dataset.teeth) };
         el.addEventListener('dragstart', e => {
-            const teeth = parseInt(el.dataset.teeth);
-            e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'gear', teeth: teeth }));
+            e.dataTransfer.setData('text/plain', JSON.stringify(data));
             e.dataTransfer.effectAllowed = 'copy';
         });
+        touchDragFromPalette(el, data);
     });
 
     // Output palette
     document.querySelectorAll('.palette-output').forEach(el => {
+        const data = { type: 'output', outputType: el.dataset.output };
         el.addEventListener('dragstart', e => {
-            const outputType = el.dataset.output;
-            e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'output', outputType: outputType }));
+            e.dataTransfer.setData('text/plain', JSON.stringify(data));
             e.dataTransfer.effectAllowed = 'copy';
         });
+        touchDragFromPalette(el, data);
     });
+}
+
+// HTML drag and drop does not reliably start from a finger inside the platform
+// iframe, so a touch drags a copy of the tile by hand and drops it the same way.
+// The tiles are touch-action: pan-y, so an up or down swipe still scrolls the
+// panel and only a sideways drag toward the board reaches this.
+function touchDragFromPalette(el, data) {
+    let start = null, ghost = null;
+    const clear = () => { if (ghost) ghost.remove(); ghost = null; start = null; };
+    el.addEventListener('pointerdown', e => {
+        if (e.pointerType !== 'touch') return;
+        start = { x: e.clientX, y: e.clientY };
+        el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', e => {
+        if (!start) return;
+        if (!ghost) {
+            if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 8) return;
+            ghost = el.cloneNode(true);
+            ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:1000;opacity:.85;margin:0;width:' + el.offsetWidth + 'px';
+            document.body.appendChild(ghost);
+        }
+        ghost.style.left = (e.clientX - ghost.offsetWidth / 2) + 'px';
+        ghost.style.top = (e.clientY - ghost.offsetHeight / 2) + 'px';
+    });
+    el.addEventListener('pointerup', e => {
+        const dropped = ghost !== null;
+        clear();
+        if (!dropped) return;
+        const r = canvas.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+            placeFromPalette(data, e.clientX, e.clientY);
+        }
+    });
+    el.addEventListener('pointercancel', clear);
 }
 
 function setupKeyboardShortcuts() {
@@ -98,8 +137,63 @@ function setupKeyboardShortcuts() {
 }
 
 // ============================================
-// Mouse Event Handlers
+// Pointer Event Handlers
 // ============================================
+// One finger works like the left mouse button. Two fingers pinch to zoom and
+// drag to pan, since a touch screen has no wheel, middle button or space bar.
+const touches = new Map();
+let pinchLast = null;
+let pinchUsed = false;   // set until every finger of a pinch is lifted
+
+function readPinch() {
+    const rect = canvas.getBoundingClientRect();
+    const [a, b] = [...touches.values()];
+    return {
+        x: (a.x + b.x) / 2 - rect.left,
+        y: (a.y + b.y) / 2 - rect.top,
+        d: Math.hypot(a.x - b.x, a.y - b.y) || 1
+    };
+}
+
+function onPointerDown(e) {
+    canvas.setPointerCapture(e.pointerId);
+    if (e.pointerType === 'touch') {
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size === 1) pinchUsed = false;
+        if (touches.size >= 2) {
+            // The first finger may already be carrying a gear; set it down where it is.
+            if (touches.size === 2) { onMouseUp(e); pinchLast = readPinch(); pinchUsed = true; }
+            return;
+        }
+    }
+    onMouseDown(e);
+}
+
+function onPointerMove(e) {
+    if (e.pointerType === 'touch') {
+        if (!touches.has(e.pointerId)) return;
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pinchUsed) {
+            if (touches.size !== 2 || !pinchLast) return;
+            const p = readPinch();
+            zoomAt(p.x, p.y, p.d / pinchLast.d);
+            panX += p.x - pinchLast.x;
+            panY += p.y - pinchLast.y;
+            pinchLast = p;
+            return;
+        }
+    }
+    onMouseMove(e);
+}
+
+function onPointerUp(e) {
+    if (e.pointerType === 'touch') {
+        touches.delete(e.pointerId);
+        if (pinchUsed) { if (touches.size !== 2) pinchLast = null; return; }
+    }
+    onMouseUp(e);
+}
+
 function onMouseDown(e) {
     const rect = canvas.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left - panX) / zoom;
@@ -314,12 +408,14 @@ function onWheel(e) {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.25, Math.min(4, zoom * zoomFactor));
+    zoomAt(mouseX, mouseY, e.deltaY > 0 ? 0.9 : 1.1);
+}
 
-    // Zoom toward mouse position
-    panX = mouseX - (mouseX - panX) * (newZoom / zoom);
-    panY = mouseY - (mouseY - panY) * (newZoom / zoom);
+// sx, sy are canvas pixels; that point stays put while the zoom changes.
+function zoomAt(sx, sy, factor) {
+    const newZoom = Math.max(0.25, Math.min(4, zoom * factor));
+    panX = sx - (sx - panX) * (newZoom / zoom);
+    panY = sy - (sy - panY) * (newZoom / zoom);
     zoom = newZoom;
 
     document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
@@ -329,32 +425,35 @@ function onCanvasDrop(e) {
     e.preventDefault();
 
     try {
-        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-        const rect = canvas.getBoundingClientRect();
-        let x = (e.clientX - rect.left - panX) / zoom;
-        let y = (e.clientY - rect.top - panY) / zoom;
-
-        // Grid snap
-        if (state.settings.gridSnap) {
-            x = Math.round(x / state.settings.gridSize) * state.settings.gridSize;
-            y = Math.round(y / state.settings.gridSize) * state.settings.gridSize;
-        }
-
-        if (data.type === 'gear') {
-            const gear = createGear(x, y, data.teeth);
-            state.selectedGearId = gear.id;
-            showToast('Gear added! Drag near another gear to connect.', 'info');
-        } else if (data.type === 'output') {
-            const output = createOutput(data.outputType, x, y);
-            if (!output.attachedToGear) {
-                showToast('Drop output on a gear to attach it.', 'info');
-            } else {
-                showToast('Output attached to gear!', 'success');
-            }
-        }
-
-        updateUI();
+        placeFromPalette(JSON.parse(e.dataTransfer.getData('text/plain')), e.clientX, e.clientY);
     } catch (err) {
         console.error('Drop error:', err);
     }
+}
+
+function placeFromPalette(data, clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    let x = (clientX - rect.left - panX) / zoom;
+    let y = (clientY - rect.top - panY) / zoom;
+
+    // Grid snap
+    if (state.settings.gridSnap) {
+        x = Math.round(x / state.settings.gridSize) * state.settings.gridSize;
+        y = Math.round(y / state.settings.gridSize) * state.settings.gridSize;
+    }
+
+    if (data.type === 'gear') {
+        const gear = createGear(x, y, data.teeth);
+        state.selectedGearId = gear.id;
+        showToast('Gear added! Drag near another gear to connect.', 'info');
+    } else if (data.type === 'output') {
+        const output = createOutput(data.outputType, x, y);
+        if (!output.attachedToGear) {
+            showToast('Drop output on a gear to attach it.', 'info');
+        } else {
+            showToast('Output attached to gear!', 'success');
+        }
+    }
+
+    updateUI();
 }
